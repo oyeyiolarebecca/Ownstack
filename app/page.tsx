@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Features from "@/components/Features";
+import ValueProp from "@/components/ValueProp";
 
 export default function HomePage() {
   return (
@@ -165,6 +167,24 @@ export default function HomePage() {
         </div>
 
       </section>
+
+      <ValueProp />
+      <Features />
+
+      <footer className="py-12 bg-slate-900 text-slate-400 text-center px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-lime-400 text-black flex items-center justify-center font-bold text-sm">₿</div>
+            <span className="text-white font-bold">OwnStack</span>
+          </div>
+          <p className="text-sm">© 2026 OwnStack. Built for the sovereign entrepreneur.</p>
+          <div className="flex gap-6 text-sm">
+            <a href="#" className="hover:text-lime-400 transition">Twitter</a>
+            <a href="#" className="hover:text-lime-400 transition">GitHub</a>
+            <a href="#" className="hover:text-lime-400 transition">Nostr</a>
+          </div>
+        </div>
+      </footer>
 
     </main>
   );

@@ -27,7 +27,7 @@ export default function Features() {
   ];
 
   return (
-    <section className="px-6 py-24 bg-[#F8FAFC]">
+    <section className="px-6 py-24 bg-white">
       <div className="max-w-7xl mx-auto">
 
         {/* SECTION HEADER */}
