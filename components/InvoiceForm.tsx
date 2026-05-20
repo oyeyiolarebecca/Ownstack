@@ -14,11 +14,14 @@ interface InvoiceFormProps {
       amount: string;
     }>
   >;
+
+  saveInvoice: () => Promise<void>;
 }
 
 export default function InvoiceForm({
   invoiceData,
   setInvoiceData,
+  saveInvoice,
 }: InvoiceFormProps) {
   return (
     <div
@@ -153,6 +156,7 @@ export default function InvoiceForm({
         </div>
 
         <button
+          onClick={saveInvoice}
           className="
             w-full
             bg-lime-500

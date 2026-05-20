@@ -34,7 +34,13 @@ const data = [
     },
 ];
 
-export default function RevenueChart() {
+import { Invoice } from "@/lib/types";
+
+interface RevenueChartProps {
+    invoices: Invoice[];
+}
+
+export default function RevenueChart({ invoices }: RevenueChartProps) {
     return (
         <section className="mt-10">
 

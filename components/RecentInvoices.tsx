@@ -1,16 +1,13 @@
-export default function RecentInvoices() {
-  const invoices = [
-    {
-      customer: "David",
-      amount: "25,000 sats",
-      status: "Paid",
-    },
-    {
-      customer: "Sarah",
-      amount: "12,000 sats",
-      status: "Pending",
-    },
-  ];
+import { Invoice } from "@/lib/types";
+
+interface RecentInvoicesProps {
+  invoices: Invoice[];
+  onUpdateStatus?: (id: number, status: string) => void;
+  limit?: number;
+}
+
+export default function RecentInvoices({ invoices, onUpdateStatus, limit }: RecentInvoicesProps) {
+  const displayInvoices = limit ? invoices.slice(0, limit) : invoices;
 
   return (
     <section className="mt-10">
@@ -39,9 +36,9 @@ export default function RecentInvoices() {
 
         <div className="mt-8 space-y-4">
 
-          {invoices.map((invoice, index) => (
+          {displayInvoices.map((invoice) => (
             <div
-              key={index}
+              key={invoice.id}
               className="
                 flex
                 items-center
@@ -59,25 +56,37 @@ export default function RecentInvoices() {
                 </h3>
 
                 <p className="text-slate-500 text-sm mt-1">
-                  {invoice.amount}
+                  {invoice.amount} sats • {invoice.service}
                 </p>
               </div>
 
-              <div
-                className={`
-                  px-4
-                  py-2
-                  rounded-full
-                  text-sm
-                  font-medium
-                  ${
-                    invoice.status === "Paid"
-                      ? "bg-lime-100 text-lime-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }
-                `}
-              >
-                {invoice.status}
+              <div className="flex items-center gap-3">
+                <div
+                  className={`
+                    px-4
+                    py-2
+                    rounded-full
+                    text-sm
+                    font-medium
+                    ${
+                      invoice.status === "Paid"
+                        ? "bg-lime-100 text-lime-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }
+                  `}
+                >
+                  {invoice.status}
+                </div>
+                
+                {invoice.status !== "Paid" && onUpdateStatus && (
+                  <button 
+                    onClick={() => onUpdateStatus(invoice.id, "Paid")}
+                    className="p-2 hover:bg-lime-50 rounded-lg text-lime-600 transition"
+                    title="Mark as Paid"
+                  >
+                    ✅
+                  </button>
+                )}
               </div>
 
             </div>

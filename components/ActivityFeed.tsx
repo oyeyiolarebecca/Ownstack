@@ -4,30 +4,32 @@ import {
     Receipt,
 } from "lucide-react";
 
-export default function ActivityFeed() {
-    const activities = [
-        {
-            title: "Invoice Paid",
-            description: "David paid 25,000 sats",
-            time: "2 mins ago",
-            icon: ArrowDownLeft,
-            status: "success",
-        },
-        {
-            title: "New Invoice Created",
-            description: "Invoice for Sarah generated",
-            time: "10 mins ago",
+import { Invoice } from "@/lib/types";
+
+interface ActivityFeedProps {
+    invoices: Invoice[];
+}
+
+export default function ActivityFeed({ invoices }: ActivityFeedProps) {
+    // Transform invoices into activity format
+    const activities = invoices.slice(0, 5).map(inv => ({
+        title: inv.status === "Paid" ? "Invoice Paid" : "New Invoice Created",
+        description: `${inv.customer} - ${inv.amount} sats`,
+        time: inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "Recently",
+        icon: inv.status === "Paid" ? ArrowDownLeft : Receipt,
+        status: inv.status === "Paid" ? "success" : "neutral",
+    }));
+
+    if (activities.length === 0) {
+        // Fallback or placeholder if no invoices
+        activities.push({
+            title: "No Activity",
+            description: "Your recent activities will appear here",
+            time: "Now",
             icon: Receipt,
             status: "neutral",
-        },
-        {
-            title: "BTC Withdrawal",
-            description: "0.002 BTC withdrawn",
-            time: "1 hour ago",
-            icon: ArrowUpRight,
-            status: "warning",
-        },
-    ];
+        });
+    }
 
     return (
         <section className="mt-10">

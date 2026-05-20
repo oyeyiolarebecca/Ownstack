@@ -68,7 +68,7 @@ export default function SignupPage() {
             text-[#0F172A]
           "
                 >
-                    Create Account 🚀
+                    Create Account
                 </h1>
 
                 <p className="text-slate-500 mt-3">
