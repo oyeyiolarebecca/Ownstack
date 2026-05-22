@@ -20,125 +20,100 @@ export default function ActivityFeed({ invoices }: ActivityFeedProps) {
         status: inv.status === "Paid" ? "success" : "neutral",
     }));
 
-    if (activities.length === 0) {
-        // Fallback or placeholder if no invoices
-        activities.push({
-            title: "No Activity",
-            description: "Your recent activities will appear here",
-            time: "Now",
-            icon: Receipt,
-            status: "neutral",
-        });
-    }
+    const noActivity = activities.length === 0;
 
     return (
-        <section className="mt-10">
-
+        <section>
             <div
                 className="
-          bg-white/80
-          backdrop-blur-md
-          border
-          border-white
-          rounded-[32px]
-          p-8
-          shadow-sm
-        "
+                  bg-white
+                  rounded-[2.5rem]
+                  p-8
+                  border border-slate-100
+                  shadow-sm
+                  h-full
+                "
             >
-
                 {/* HEADER */}
-                <div className="flex items-center justify-between">
-
+                <div className="flex items-center justify-between mb-8">
                     <div>
-                        <p className="text-slate-500 font-medium">
-                            Recent Activity
-                        </p>
-
-                        <h2 className="text-3xl font-bold text-[#0F172A] mt-2">
-                            Transactions
+                        <h2 className="text-xl font-bold text-slate-900">
+                            Activity Pulse
                         </h2>
+                        <p className="text-slate-400 text-xs font-medium mt-1">
+                             Live highlights
+                        </p>
                     </div>
-
-                    <button
-                        className="
-              text-lime-600
-              font-semibold
-              hover:text-lime-700
-              transition
-            "
-                    >
-                        View All
-                    </button>
-
                 </div>
 
-                {/* ACTIVITIES */}
-                <div className="space-y-5 mt-10">
+                {/* ACTIVITIES - Timeline Layout */}
+                <div className="relative space-y-8 pl-2">
+                    {/* Vertical Line */}
+                    <div className="absolute left-7 top-2 bottom-2 w-[1px] bg-slate-100 border-l border-dashed border-slate-200"></div>
 
-                    {activities.map((activity, index) => {
-                        const Icon = activity.icon;
+                    {noActivity ? (
+                        <div className="py-12 text-center bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-xl mx-auto mb-3 shadow-sm border border-slate-100">
+                               📡
+                             </div>
+                             <p className="text-slate-900 font-bold text-xs">Waiting for Pulse</p>
+                             <p className="text-slate-400 text-[10px] mt-1 max-w-[150px] mx-auto">
+                               Activities will stream here in real-time.
+                             </p>
+                        </div>
+                    ) : (
+                        activities.map((activity, index) => {
+                            const Icon = activity.icon;
 
-                        return (
-                            <div
-                                key={index}
-                                className="
-                  flex
-                  items-center
-                  justify-between
-                  border
-                  border-gray-100
-                  rounded-3xl
-                  p-5
-                  hover:bg-lime-50/40
-                  transition
-                "
-                            >
-
-                                <div className="flex items-center gap-4">
-
+                            return (
+                                <div
+                                    key={index}
+                                    className="relative flex items-start gap-4 group"
+                                >
+                                    {/* Icon Circle */}
                                     <div
                                         className={`
-                      w-14
-                      h-14
-                      rounded-2xl
-                      flex
-                      items-center
-                      justify-center
-                      ${activity.status === "success"
+                                            relative z-10
+                                            w-10
+                                            h-10
+                                            rounded-2xl
+                                            flex
+                                            items-center
+                                            justify-center
+                                            transition-all
+                                            duration-300
+                                            group-hover:scale-110
+                                            ${activity.status === "success"
                                                 ? "bg-lime-100 text-lime-700"
-                                                : activity.status === "warning"
-                                                    ? "bg-yellow-100 text-yellow-700"
-                                                    : "bg-slate-100 text-slate-700"
+                                                : "bg-slate-100 text-slate-700"
                                             }
-                    `}
+                                        `}
                                     >
-                                        <Icon className="w-6 h-6" />
+                                        <Icon className="w-5 h-5" />
                                     </div>
 
-                                    <div>
-                                        <h3 className="font-semibold text-[#0F172A]">
-                                            {activity.title}
-                                        </h3>
+                                    <div className="flex-1 pt-0.5">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-slate-900 text-sm">
+                                                {activity.title}
+                                            </h3>
+                                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                                                {activity.time}
+                                            </span>
+                                        </div>
 
-                                        <p className="text-slate-500 mt-1">
+                                        <p className="text-slate-500 text-[11px] font-medium mt-0.5">
                                             {activity.description}
                                         </p>
                                     </div>
-
                                 </div>
-
-                                <p className="text-sm text-slate-400">
-                                    {activity.time}
-                                </p>
-
-                            </div>
-                        );
-                    })}
+                            );
+                        })
+                    )}
 
                 </div>
 
             </div>
-
         </section>
     );
 }

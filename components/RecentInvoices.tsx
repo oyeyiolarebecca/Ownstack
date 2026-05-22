@@ -1,4 +1,6 @@
+"use client";
 import { Invoice } from "@/lib/types";
+import Link from "next/link";
 
 interface RecentInvoicesProps {
   invoices: Invoice[];
@@ -9,93 +11,129 @@ interface RecentInvoicesProps {
 export default function RecentInvoices({ invoices, onUpdateStatus, limit }: RecentInvoicesProps) {
   const displayInvoices = limit ? invoices.slice(0, limit) : invoices;
 
+  const getAvatarColor = (name: string) => {
+    const colors = ['bg-blue-100 text-blue-600', 'bg-lime-100 text-lime-600', 'bg-purple-100 text-purple-600', 'bg-orange-100 text-orange-600', 'bg-pink-100 text-pink-600'];
+    const index = name.length % colors.length;
+    return colors[index];
+  };
+
   return (
-    <section className="mt-10">
-
-      <div className="
+    <div
+      className="
         bg-white
-        border
-        text-lime-500
-        border-gray-200
-        rounded-3xl
-        p-6
+        rounded-[2.5rem]
+        p-8
+        border border-slate-100
         shadow-sm
-      ">
-
-        <div className="flex items-center justify-between">
-
-          <h2 className="text-lime-500 font-bold">
+      "
+    >
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">
             Recent Invoices
           </h2>
-
-          <button className="text-lime-500 font-medium">
-            View All
-          </button>
-
+          <p className="text-slate-400 text-xs font-medium mt-1">
+             Manage your latest transaction records
+          </p>
         </div>
 
-        <div className="mt-8 space-y-4">
+        {limit && (
+           <Link 
+             href="/history" 
+             className="text-lime-600 hover:text-lime-700 text-xs font-bold uppercase tracking-widest flex items-center gap-1 transition-all"
+           >
+             View All →
+           </Link>
+        )}
+      </div>
 
-          {displayInvoices.map((invoice) => (
+      <div className="space-y-3">
+        {invoices.length === 0 ? (
+          <div className="py-16 text-center bg-slate-50/50 rounded-[2rem] border border-dashed border-slate-200">
+             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm border border-slate-100">
+               👻
+             </div>
+             <p className="text-slate-900 font-bold">No Invoices Yet</p>
+             <p className="text-slate-400 text-xs mt-1 max-w-[200px] mx-auto">
+               Your transaction history will appear here once you create your first invoice.
+             </p>
+          </div>
+        ) : (
+          displayInvoices.map((invoice) => (
             <div
               key={invoice.id}
               className="
+                group
                 flex
                 items-center
                 justify-between
-                border
-                border-gray-100
-                rounded-2xl
                 p-4
+                rounded-3xl
+                hover:bg-slate-50/80
+                transition-all
+                duration-300
+                border border-transparent
+                hover:border-slate-100
               "
             >
-
-              <div>
-                <h3 className="font-semibold">
-                  {invoice.customer}
-                </h3>
-
-                <p className="text-slate-500 text-sm mt-1">
-                  {invoice.amount} sats • {invoice.service}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div
-                  className={`
-                    px-4
-                    py-2
-                    rounded-full
-                    text-sm
-                    font-medium
-                    ${
-                      invoice.status === "Paid"
-                        ? "bg-lime-100 text-lime-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }
-                  `}
-                >
-                  {invoice.status}
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-sm transition-transform group-hover:scale-105 duration-300 ${getAvatarColor(invoice.customer)}`}>
+                  {invoice.customer.charAt(0)}
                 </div>
-                
-                {invoice.status !== "Paid" && onUpdateStatus && (
-                  <button 
-                    onClick={() => onUpdateStatus(invoice.id, "Paid")}
-                    className="p-2 hover:bg-lime-50 rounded-lg text-lime-600 transition"
-                    title="Mark as Paid"
-                  >
-                    ✅
-                  </button>
-                )}
+
+                <div>
+                  <h3 className="font-bold text-slate-900">
+                    {invoice.customer}
+                  </h3>
+                  <p className="text-slate-400 text-xs font-medium">
+                    {invoice.service}
+                  </p>
+                </div>
               </div>
 
+              <div className="text-right flex items-center gap-6">
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900">
+                    {Number(invoice.amount).toLocaleString()} <span className="text-[10px] text-slate-400 uppercase tracking-widest">sats</span>
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">
+                    Amount
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`
+                      min-w-[80px]
+                      text-[11px]
+                      px-4
+                      py-1.5
+                      rounded-full
+                      font-bold
+                      text-center
+                      ${invoice.status === "Paid" 
+                          ? "bg-lime-100 text-lime-700" 
+                          : "bg-orange-100 text-orange-700"}
+                    `}
+                  >
+                    {invoice.status}
+                  </span>
+
+                  {invoice.status !== "Paid" && onUpdateStatus && (
+                    <button 
+                      onClick={() => onUpdateStatus(invoice.id, "Paid")}
+                      className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-lime-500 hover:text-white rounded-xl text-slate-400 transition-all active:scale-90"
+                      title="Mark as Paid"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          ))}
-
-        </div>
-
+          ))
+        )}
       </div>
-
-    </section>
+    </div>
   );
 }

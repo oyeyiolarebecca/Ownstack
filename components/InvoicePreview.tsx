@@ -11,14 +11,25 @@ interface InvoicePreviewProps {
     amount: string;
   };
   lightningAddress?: string;
+  status?: string;
+  onSettled?: () => void;
 }
 
 export default function InvoicePreview({
   invoiceData,
   lightningAddress = "ownstack@getalby.com",
+  status,
+  onSettled,
 }: InvoicePreviewProps) {
   const [paymentRequest, setPaymentRequest] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSettled, setIsSettled] = useState(status === "Paid" || status === "Completed");
+
+  useEffect(() => {
+    if (status === "Paid" || status === "Completed") {
+      setIsSettled(true);
+    }
+  }, [status]);
 
   useEffect(() => {
     async function fetchInvoice() {
@@ -28,6 +39,8 @@ export default function InvoicePreview({
       try {
         const pr = await getLightningInvoice(lightningAddress, Number(invoiceData.amount));
         setPaymentRequest(pr);
+        // Reset settlement state when amount changes
+        setIsSettled(false);
       } catch (err) {
         console.error("Failed to fetch LN invoice:", err);
       } finally {
@@ -36,6 +49,17 @@ export default function InvoicePreview({
     }
     fetchInvoice();
   }, [invoiceData.amount, lightningAddress]);
+
+  // Mock polling for settlement
+  useEffect(() => {
+    if (paymentRequest && !isSettled) {
+      const interval = setInterval(() => {
+        // In a real app, you would call an API here to check if the BOLT11 is paid
+        console.log("Checking settlement for:", paymentRequest);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [paymentRequest, isSettled]);
 
   const qrValue = paymentRequest ? `lightning:${paymentRequest}` : `lightning:mock-${invoiceData.customer}-${invoiceData.amount}`;
   return (
@@ -66,17 +90,16 @@ export default function InvoicePreview({
         </div>
 
         <div
-          className="
+          className={`
             px-4
             py-2
             rounded-full
-            bg-yellow-100
-            text-yellow-700
             text-sm
             font-medium
-          "
+            ${isSettled ? "bg-lime-100 text-lime-700" : "bg-yellow-100 text-yellow-700"}
+          `}
         >
-          Pending
+          {isSettled ? "Paid" : "Pending"}
         </div>
 
       </div>
@@ -96,12 +119,23 @@ export default function InvoicePreview({
           mt-10
           relative
           min-h-[300px]
+          overflow-hidden
         "
       >
         {isLoading ? (
           <div className="flex flex-col items-center gap-4">
             <div className="w-10 h-10 border-4 border-lime-200 border-t-lime-500 rounded-full animate-spin"></div>
             <p className="text-slate-400 text-sm font-medium">Generating Lightning Invoice...</p>
+          </div>
+        ) : isSettled ? (
+          <div className="flex flex-col items-center gap-6 animate-in zoom-in duration-500">
+            <div className="w-24 h-24 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center text-5xl">
+              ✅
+            </div>
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-[#0F172A]">Payment Received!</h3>
+              <p className="text-slate-500 mt-2">The sats have been settled.</p>
+            </div>
           </div>
         ) : (
           <>
@@ -115,6 +149,18 @@ export default function InvoicePreview({
                   Mock QR (Enter Amount)
                 </p>
               </div>
+            )}
+            {paymentRequest && (
+              <button 
+                onClick={() => {
+                  setIsSettled(true);
+                  if (onSettled) onSettled();
+                }}
+                className="absolute bottom-4 bg-slate-900/10 hover:bg-slate-900/20 text-slate-600 px-4 py-2 rounded-full text-xs font-bold transition flex items-center gap-2"
+              >
+                <span>Verify Payment</span>
+                <span className="w-2 h-2 bg-lime-500 rounded-full animate-pulse"></span>
+              </button>
             )}
           </>
         )}

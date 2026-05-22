@@ -15,6 +15,7 @@ import { Skeleton, StatsSkeleton, InvoiceSkeleton } from "@/components/Skeleton"
 import { getStoredNostrUser } from "@/lib/nostr";
 
 import { Invoice } from "@/lib/types";
+import MobileHeader from "@/components/MobileHeader";
 
 export default function DashboardPage() {
 
@@ -52,6 +53,25 @@ export default function DashboardPage() {
       }
     }
     init();
+
+    // Subscribe to real-time updates for invoices
+    const subscription = supabase
+      .channel('invoice-updates')
+      .on('postgres_changes' as any, { event: 'UPDATE', schema: 'public', table: 'invoices' }, (payload: any) => {
+        console.log('Real-time update received:', payload);
+        const updatedInvoice = payload.new as Invoice;
+        setInvoices(prev => prev.map(inv => inv.id === updatedInvoice.id ? updatedInvoice : inv));
+      })
+      .on('postgres_changes' as any, { event: 'INSERT', schema: 'public', table: 'invoices' }, (payload: any) => {
+        console.log('Real-time insert received:', payload);
+        const newInvoice = payload.new as Invoice;
+        setInvoices(prev => [newInvoice, ...prev]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   async function checkUser() {
@@ -166,11 +186,11 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-lime-50 flex">
-
+      <main className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-lime-50 flex flex-col md:flex-row">
         <Sidebar profile={profile} />
-
-        <div className="flex-1 p-8">
+        <div className="flex-1 flex flex-col min-w-0">
+          <MobileHeader />
+          <div className="p-4 md:p-8">
 
           <DashboardHeader />
 
@@ -230,6 +250,7 @@ export default function DashboardPage() {
             </div>
           )}
 
+          </div>
         </div>
 
       </main>

@@ -43,31 +43,34 @@ export default function StatsCards({ invoices }: StatsCardsProps) {
           <div
             key={index}
             className="
+              group
               bg-white
-              border
-              border-gray-100
-              rounded-[32px]
+              border border-slate-100
+              rounded-[2.5rem]
               p-8
               shadow-sm
+              hover:shadow-md
+              hover:-translate-y-1
+              transition-all
+              duration-300
               flex
-              items-center
+              flex-col
               gap-6
             "
           >
-            <div className={`w-14 h-14 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center`}>
-                <Icon size={24} />
+            <div className={`w-14 h-14 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 duration-300`}>
+                <Icon size={24} strokeWidth={2.5} />
             </div>
 
             <div>
-              <p className="text-slate-500 font-medium">
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">
                 {stat.title}
               </p>
 
-              <h2 className="text-3xl font-bold mt-1 text-[#0F172A]">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">
                 {stat.value}
               </h2>
             </div>
-
           </div>
         );
       })}
