@@ -1,6 +1,5 @@
 import { 
   XCircle, 
-  CheckCircle2, 
   ArrowRight,
   ShieldOff,
   AlertCircle,

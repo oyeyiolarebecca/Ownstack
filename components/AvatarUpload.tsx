@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { ChangeEvent, useState } from "react";
@@ -36,8 +37,9 @@ export default function AvatarUpload({ url, onUpload }: AvatarUploadProps) {
             const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
             onUpload(data.publicUrl);
             
-        } catch (error: any) {
-            alert(error.message);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Upload failed";
+            alert(message);
         } finally {
             setUploading(false);
         }

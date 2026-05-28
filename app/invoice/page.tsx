@@ -1,65 +1,103 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
-import InvoiceForm from "@/components/InvoiceForm";
+import InvoiceForm, { InvoiceFormData } from "@/components/InvoiceForm";
 import InvoicePreview from "@/components/InvoicePreview";
-import { useRouter } from "next/navigation";
 import { getStoredNostrUser } from "@/lib/nostr";
 import Link from "next/link";
 import MobileHeader from "@/components/MobileHeader";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import { BusinessProfile, Invoice } from "@/lib/types";
+import {
+  defaultNostrProfile,
+  loadLocalInvoices,
+  normalizeProfile,
+  saveLocalInvoices,
+  savePublicInvoice,
+  localToSats,
+  getInvoiceProofId,
+} from "@/lib/businessData";
 
 export default function InvoicePage() {
-
-  const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
   useEffect(() => {
-    fetchProfile();
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const nostrUser = getStoredNostrUser();
+
+      if (user) {
+        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+        if (data) setProfile(normalizeProfile(data));
+        return;
+      }
+
+      if (nostrUser) {
+        const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
+        setProfile(localProfile ? normalizeProfile(JSON.parse(localProfile)) : defaultNostrProfile(nostrUser));
+      }
+    }
+
+    loadProfile();
   }, []);
 
-  async function fetchProfile() {
-    const { data: { user } } = await supabase.auth.getUser();
-    const nostrUser = getStoredNostrUser();
-
-    if (user) {
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-      if (data) setProfile(data);
-    } else if (nostrUser) {
-      const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
-      if (localProfile) setProfile(JSON.parse(localProfile));
-    }
-  }
-
-  const [invoiceData, setInvoiceData] = useState({
+  const [invoiceData, setInvoiceData] = useState<InvoiceFormData>({
     customer: "David",
     service: "Website Design",
-    amount: "25000",
+    localAmount: "25000",
+    currency: "NGN",
+    paymentMethod: "bank_transfer",
   });
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   async function saveInvoice() {
+    if (!invoiceData.customer.trim() || !invoiceData.service.trim() || Number(invoiceData.localAmount) <= 0) {
+      alert("Add a customer, service, and valid local amount first.");
+      return;
+    }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    setIsSaving(true);
 
+    const { data: { user } } = await supabase.auth.getUser();
     const nostrUser = getStoredNostrUser();
+    const activeProfile = profile ? normalizeProfile(profile) : nostrUser ? defaultNostrProfile(nostrUser) : null;
 
-    const newInvoice = {
-      customer: invoiceData.customer,
-      service: invoiceData.service,
-      amount: Number(invoiceData.amount),
-      status: "Pending", // Default to Pending for Bitcoin-native verification later
+    const satsAmount = localToSats(invoiceData.localAmount, invoiceData.currency);
+
+    const newInvoice: Invoice = {
+      id: Date.now(),
+      customer: invoiceData.customer.trim(),
+      service: invoiceData.service.trim(),
+      amount: satsAmount,
+      local_amount: Number(invoiceData.localAmount),
+      currency: invoiceData.currency,
+      sats_amount: satsAmount,
+      payment_method: invoiceData.paymentMethod,
+      status: "Pending",
       created_at: new Date().toISOString(),
+      user_id: user?.id,
+      owner_pubkey: nostrUser?.pubkey,
+      lightning_address: activeProfile?.lightning_username || "ownstack@getalby.com",
+      profile: activeProfile || undefined,
     };
 
     try {
       if (user) {
-        // Remove created_at from Supabase insert to let the DB handle it
-        const { created_at, ...supabasePayload } = newInvoice;
+        const supabasePayload = {
+          customer: newInvoice.customer,
+          service: newInvoice.service,
+          amount: newInvoice.amount,
+          local_amount: newInvoice.local_amount,
+          currency: newInvoice.currency,
+          sats_amount: newInvoice.sats_amount,
+          payment_method: newInvoice.payment_method,
+          status: newInvoice.status,
+          user_id: user.id,
+          lightning_address: newInvoice.lightning_address,
+        };
         const { data, error } = await supabase
           .from("invoices")
           .insert([supabasePayload])
@@ -67,114 +105,133 @@ export default function InvoicePage() {
           .single();
 
         if (error) throw error;
-        if (data) setSavedInvoiceId(data.id);
+        if (data) {
+          const savedInvoice = { ...newInvoice, ...data, profile: activeProfile || undefined } as Invoice;
+          savePublicInvoice(savedInvoice);
+          setSavedInvoiceId(String(savedInvoice.id));
+        }
       }
 
       if (nostrUser) {
-        const storageKey = `invoices_${nostrUser.pubkey}`;
-        const existingInvoices = JSON.parse(localStorage.getItem(storageKey) || "[]");
-        const id = Date.now();
-        const invoicesWithId = [{ ...newInvoice, id }, ...existingInvoices];
-        localStorage.setItem(storageKey, JSON.stringify(invoicesWithId));
-        setSavedInvoiceId(id.toString());
+        const existingInvoices = loadLocalInvoices(nostrUser.pubkey);
+        const invoicesWithId = [newInvoice, ...existingInvoices];
+        saveLocalInvoices(nostrUser.pubkey, invoicesWithId);
+        savePublicInvoice(newInvoice);
+        setSavedInvoiceId(String(newInvoice.id));
       }
-
-      // No redirect yet, show share link
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
       console.error("Error saving invoice:", error);
-      alert(`Failed to save invoice: ${error.message}`);
+      alert(`Failed to save invoice: ${message}`);
+    } finally {
+      setIsSaving(false);
     }
   }
 
   function copyLink() {
     if (!savedInvoiceId) return;
-    const url = `${window.location.origin}/invoice/${savedInvoiceId}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(`${window.location.origin}/invoice/${savedInvoiceId}`);
     setIsCopying(true);
     setTimeout(() => setIsCopying(false), 2000);
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-lime-50 flex flex-col md:flex-row">
+    <ProtectedRoute>
+      <main className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-lime-50 flex flex-col md:flex-row">
+        <Sidebar profile={profile} />
 
-      <Sidebar profile={profile} />
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <MobileHeader />
-        <div className="p-4 md:p-8">
-
-        <div className="flex items-center justify-between">
-
-          <div>
-            <p className="text-slate-500">
-              Manage payments
-            </p>
-
-            <h1 className="text-black font-bold mt-2">
-              Create Invoice
-            </h1>
-          </div>
-
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-8 mt-10 relative">
-
-          {savedInvoiceId && (
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6 animate-in fade-in duration-500 rounded-[32px]">
-              <div className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-2xl max-w-md w-full text-center scale-up-center animate-in zoom-in duration-300">
-                <div className="w-20 h-20 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
-                  🎉
-                </div>
-                <h2 className="text-2xl font-bold text-[#0F172A]">Invoice Created!</h2>
-                <p className="text-slate-500 mt-2">Your invoice is now live and ready to be paid.</p>
-                
-                <div className="mt-8 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-4">
-                  <code className="text-xs text-slate-500 truncate text-left flex-1">
-                    {window.location.origin}/invoice/{savedInvoiceId}
-                  </code>
-                  <button 
-                    onClick={copyLink}
-                    className="shrink-0 bg-black text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition"
-                  >
-                    {isCopying ? "Copied!" : "Copy Link"}
-                  </button>
-                </div>
-
-                <div className="mt-8 flex flex-col gap-3">
-                  <Link 
-                    href="/dashboard"
-                    className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition"
-                  >
-                    Back to Dashboard
-                  </Link>
-                  <button 
-                    onClick={() => {
-                        setSavedInvoiceId(null);
-                        setInvoiceData({ customer: "", service: "", amount: "" });
-                    }}
-                    className="text-slate-400 text-sm font-medium hover:text-slate-600 underline"
-                  >
-                    Create Another
-                  </button>
-                </div>
+        <div className="flex-1 flex flex-col min-w-0">
+          <MobileHeader />
+          <div className="p-4 md:p-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-500">Manage payments</p>
+                <h1 className="text-black font-bold mt-2">Create Invoice</h1>
               </div>
             </div>
-          )}
 
-          <InvoiceForm
-            invoiceData={invoiceData}
-            setInvoiceData={setInvoiceData}
-            saveInvoice={saveInvoice}
-          />
+            <div className="grid lg:grid-cols-2 gap-8 mt-10 relative">
+              {savedInvoiceId && (
+                <div className="absolute inset-0 bg-white/40 backdrop-blur-md z-20 flex flex-col items-center justify-center p-6 animate-in fade-in duration-500 rounded-[32px]">
+                  <div className="bg-white border border-slate-200 p-10 rounded-[40px] shadow-2xl max-w-md w-full text-center scale-up-center animate-in zoom-in duration-300">
+                    <div className="w-20 h-20 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+                      ₿
+                    </div>
+                    <h2 className="text-2xl font-bold text-[#0F172A]">Invoice Created</h2>
+                    <p className="text-slate-500 mt-2">Your invoice is live with local payment options and a Lightning QR.</p>
+                    <div className="mt-5 inline-flex rounded-full bg-lime-50 px-4 py-2 text-xs font-black uppercase tracking-widest text-lime-700">
+                      Proof ID {getInvoiceProofId(savedInvoiceId)}
+                    </div>
 
-          <InvoicePreview
-            invoiceData={invoiceData}
-            lightningAddress={profile?.lightning_username || "ownstack@getalby.com"}
-          />
+                    <div className="mt-8 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-4">
+                      <code className="text-xs text-slate-500 truncate text-left flex-1">
+                        /invoice/{savedInvoiceId}
+                      </code>
+                      <button
+                        onClick={copyLink}
+                        className="shrink-0 bg-black text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+                      >
+                        {isCopying ? "Copied" : "Copy Link"}
+                      </button>
+                    </div>
 
-        </div>
+                    <div className="mt-8 grid gap-3">
+                      <Link
+                        href={`/invoice/${savedInvoiceId}`}
+                        className="w-full py-4 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-2xl transition"
+                      >
+                        View Public Invoice
+                      </Link>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Link
+                          href="/dashboard"
+                          className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition"
+                        >
+                          Dashboard
+                        </Link>
+                        <Link
+                          href="/vault"
+                          className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition"
+                        >
+                          Add Receipt
+                        </Link>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSavedInvoiceId(null);
+                          setInvoiceData({ customer: "", service: "", localAmount: "", currency: "NGN", paymentMethod: "bank_transfer" });
+                        }}
+                        className="text-slate-400 text-sm font-medium hover:text-slate-600 underline"
+                      >
+                        Create Another
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <InvoiceForm
+                invoiceData={invoiceData}
+                setInvoiceData={setInvoiceData}
+                saveInvoice={saveInvoice}
+                isSaving={isSaving}
+              />
+
+              <InvoicePreview
+                invoiceData={{
+                  customer: invoiceData.customer,
+                  service: invoiceData.service,
+                  amount: String(localToSats(invoiceData.localAmount, invoiceData.currency)),
+                  localAmount: invoiceData.localAmount,
+                  currency: invoiceData.currency,
+                  paymentMethod: invoiceData.paymentMethod,
+                }}
+                lightningAddress={profile?.lightning_username || "ownstack@getalby.com"}
+              />
+            </div>
           </div>
         </div>
-    </main>
+      </main>
+    </ProtectedRoute>
   );
 }

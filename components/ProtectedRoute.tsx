@@ -6,44 +6,42 @@ import { supabase } from "@/lib/supabase";
 import { getStoredNostrUser } from "@/lib/nostr";
 
 export default function ProtectedRoute({
-    children,
+  children,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
-    const router = useRouter();
-
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        checkUser();
-    }, []);
+  useEffect(() => {
+    let mounted = true;
 
     async function checkUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const nostrUser = getStoredNostrUser();
 
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
+      if (!user && !nostrUser) {
+        router.push("/login");
+        return;
+      }
 
-        const nostrUser = getStoredNostrUser();
-
-        if (!user && !nostrUser) {
-            router.push("/login");
-            return;
-        }
-
-        setLoading(false);
+      if (mounted) setLoading(false);
     }
 
-    if (loading) {
-        return (
-            <div className="h-screen flex items-center justify-center">
-                <p className="text-slate-500">
-                    Loading...
-                </p>
-            </div>
-        );
-    }
+    checkUser();
 
-    return children;
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <p className="text-slate-500">Loading...</p>
+      </div>
+    );
+  }
+
+  return children;
 }

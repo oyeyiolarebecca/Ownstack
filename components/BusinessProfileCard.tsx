@@ -1,13 +1,16 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import {
     ShieldCheck,
     Bitcoin,
     BadgeCheck,
+    Radio,
 } from "lucide-react";
+import { BusinessProfile } from "@/lib/types";
 
 interface BusinessProfileCardProps {
-    profile?: any;
+    profile?: BusinessProfile | null;
     invoices: {
         customer: string;
         amount: number;
@@ -88,6 +91,12 @@ export default function BusinessProfileCard({
                             <p className="text-slate-500 mt-2">
                                 {profile?.category || "Women-led Business"}
                             </p>
+
+                            {profile?.bio && (
+                                <p className="text-slate-500 mt-3 max-w-xl text-sm leading-relaxed">
+                                    {profile.bio}
+                                </p>
+                            )}
 
                             <div className="flex items-center gap-2 mt-4">
 
@@ -191,13 +200,26 @@ export default function BusinessProfileCard({
             "
                     >
 
-                        <p className="text-slate-500">
-                            Lightning ID
-                        </p>
+                        <div className="flex items-center gap-3">
+                            <Radio
+                                className="text-lime-600"
+                                size={22}
+                            />
 
-                        <h3 className="text-xl font-bold mt-5 text-[#0F172A]">
+                            <p className="text-slate-500">
+                                Bitcoin Identity
+                            </p>
+                        </div>
+
+                        <h3 className="text-base font-bold mt-5 text-[#0F172A] break-all">
                             {profile?.lightning_username || "sheowns@lightning"}
                         </h3>
+
+                        {profile?.nostr_npub && (
+                            <p className="text-[10px] font-medium text-slate-400 mt-2 break-all">
+                                {profile.nostr_npub}
+                            </p>
+                        )}
 
                     </div>
 

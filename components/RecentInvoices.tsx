@@ -1,6 +1,8 @@
 "use client";
 import { Invoice } from "@/lib/types";
 import Link from "next/link";
+import { Check, ExternalLink, FileText } from "lucide-react";
+import { formatLocalAmount, getInvoiceSats, isPaidStatus, paymentMethodLabels } from "@/lib/businessData";
 
 interface RecentInvoicesProps {
   invoices: Invoice[];
@@ -50,8 +52,8 @@ export default function RecentInvoices({ invoices, onUpdateStatus, limit }: Rece
       <div className="space-y-3">
         {invoices.length === 0 ? (
           <div className="py-16 text-center bg-slate-50/50 rounded-[2rem] border border-dashed border-slate-200">
-             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 shadow-sm border border-slate-100">
-               👻
+             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100 text-slate-300">
+               <FileText size={28} />
              </div>
              <p className="text-slate-900 font-bold">No Invoices Yet</p>
              <p className="text-slate-400 text-xs mt-1 max-w-[200px] mx-auto">
@@ -94,14 +96,21 @@ export default function RecentInvoices({ invoices, onUpdateStatus, limit }: Rece
               <div className="text-right flex items-center gap-6">
                 <div className="space-y-1">
                   <p className="font-bold text-slate-900">
-                    {Number(invoice.amount).toLocaleString()} <span className="text-[10px] text-slate-400 uppercase tracking-widest">sats</span>
+                    {formatLocalAmount(invoice.local_amount ?? invoice.amount, invoice.currency)}
                   </p>
                   <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">
-                    Amount
+                    {getInvoiceSats(invoice).toLocaleString()} sats • {paymentMethodLabels[invoice.payment_method || "lightning"] || "Payment"}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <Link
+                    href={`/invoice/${invoice.id}`}
+                    className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-900 hover:text-white rounded-xl text-slate-400 transition-all active:scale-90"
+                    title="Open invoice"
+                  >
+                    <ExternalLink size={15} strokeWidth={2.5} />
+                  </Link>
                   <span
                     className={`
                       min-w-[80px]
@@ -111,21 +120,21 @@ export default function RecentInvoices({ invoices, onUpdateStatus, limit }: Rece
                       rounded-full
                       font-bold
                       text-center
-                      ${invoice.status === "Paid" 
-                          ? "bg-lime-100 text-lime-700" 
+                      ${isPaidStatus(invoice.status)
+                          ? "bg-lime-100 text-lime-700"
                           : "bg-orange-100 text-orange-700"}
                     `}
                   >
                     {invoice.status}
                   </span>
 
-                  {invoice.status !== "Paid" && onUpdateStatus && (
+                  {!isPaidStatus(invoice.status) && onUpdateStatus && (
                     <button 
                       onClick={() => onUpdateStatus(invoice.id, "Paid")}
                       className="w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-lime-500 hover:text-white rounded-xl text-slate-400 transition-all active:scale-90"
                       title="Mark as Paid"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <Check size={16} strokeWidth={3} />
                     </button>
                   )}
                 </div>

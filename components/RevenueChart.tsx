@@ -17,6 +17,7 @@ const data = [
 ];
 
 import { Invoice } from "@/lib/types";
+import { formatLocalAmount, getInvoiceLocalAmount, isPaidStatus } from "@/lib/businessData";
 
 interface RevenueChartProps {
     invoices: Invoice[];
@@ -24,7 +25,11 @@ interface RevenueChartProps {
 
 export default function RevenueChart({ invoices }: RevenueChartProps) {
     // TOTAL REVENUE calculation
-    const totalRevenue = invoices.reduce((acc: number, inv: Invoice) => acc + Number(inv.amount), 0);
+    const paidInvoices = invoices.filter((inv) => isPaidStatus(inv.status));
+    const primaryCurrency = paidInvoices[0]?.currency || invoices[0]?.currency || "NGN";
+    const totalRevenue = paidInvoices
+        .filter((inv) => (inv.currency || primaryCurrency) === primaryCurrency)
+        .reduce((acc: number, inv: Invoice) => acc + getInvoiceLocalAmount(inv), 0);
 
     return (
         <section className="mt-8">
@@ -61,7 +66,7 @@ export default function RevenueChart({ invoices }: RevenueChartProps) {
                           shadow-lg shadow-slate-200
                         "
                     >
-                        Total: {totalRevenue.toLocaleString()} <span className="text-lime-400 text-[10px] uppercase font-black">sats</span>
+                        Total: {formatLocalAmount(totalRevenue, primaryCurrency)}
                     </div>
                 </div>
 

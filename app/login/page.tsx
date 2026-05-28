@@ -24,8 +24,9 @@ export default function LoginPage() {
         try {
             await loginWithNostr();
             router.push("/dashboard");
-        } catch (error: any) {
-            alert(error.message || "Nostr login failed");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Nostr login failed";
+            alert(message);
         } finally {
             setIsLoading(false);
         }

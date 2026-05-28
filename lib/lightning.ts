@@ -45,8 +45,9 @@ export async function getLightningInvoice(lightningAddress: string, amountSats: 
 
     const invoiceData = await invoiceResponse.json();
     return invoiceData.pr; // Payment Request (BOLT11)
-  } catch (error: any) {
-    console.warn("Lightning Invoice Error:", error.message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Lightning invoice error";
+    console.warn("Lightning Invoice Error:", message);
     throw error;
   }
 }
@@ -56,7 +57,7 @@ declare global {
     webln?: {
       enable(): Promise<void>;
       sendPayment(invoice: string): Promise<{ preimage: string }>;
-      makeInvoice(args: any): Promise<{ paymentHash: string; paymentRequest: string }>;
+      makeInvoice(args: Record<string, unknown>): Promise<{ paymentHash: string; paymentRequest: string }>;
     };
   }
 }

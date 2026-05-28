@@ -1,10 +1,10 @@
 import {
     ArrowDownLeft,
-    ArrowUpRight,
     Receipt,
 } from "lucide-react";
 
 import { Invoice } from "@/lib/types";
+import { formatLocalAmount, isPaidStatus } from "@/lib/businessData";
 
 interface ActivityFeedProps {
     invoices: Invoice[];
@@ -13,11 +13,11 @@ interface ActivityFeedProps {
 export default function ActivityFeed({ invoices }: ActivityFeedProps) {
     // Transform invoices into activity format
     const activities = invoices.slice(0, 5).map(inv => ({
-        title: inv.status === "Paid" ? "Invoice Paid" : "New Invoice Created",
-        description: `${inv.customer} - ${inv.amount} sats`,
+        title: isPaidStatus(inv.status) ? "Invoice Paid" : "New Invoice Created",
+        description: `${inv.customer} - ${formatLocalAmount(inv.local_amount ?? inv.amount, inv.currency)}`,
         time: inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "Recently",
-        icon: inv.status === "Paid" ? ArrowDownLeft : Receipt,
-        status: inv.status === "Paid" ? "success" : "neutral",
+        icon: isPaidStatus(inv.status) ? ArrowDownLeft : Receipt,
+        status: isPaidStatus(inv.status) ? "success" : "neutral",
     }));
 
     const noActivity = activities.length === 0;

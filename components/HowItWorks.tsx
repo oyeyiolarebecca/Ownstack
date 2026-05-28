@@ -1,5 +1,3 @@
-import { projectGetSourceForAsset } from "next/dist/build/swc/generated-native";
-
 export default function HowItWorks() {
   const steps = [
     {

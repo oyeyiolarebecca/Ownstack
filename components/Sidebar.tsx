@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import Link from "next/link";
@@ -5,21 +6,22 @@ import { useRouter, usePathname } from "next/navigation";
 
 import { supabase } from "@/lib/supabase";
 import { logoutNostr, getStoredNostrUser } from "@/lib/nostr";
+import { BusinessProfile } from "@/lib/types";
 
 import {
   LayoutDashboard,
   FileText,
-  Wallet,
   Settings,
   User,
   History,
   LogOut,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { useSidebar } from "@/context/SidebarContext";
 
 interface SidebarProps {
-  profile?: any;
+  profile?: BusinessProfile | null;
 }
 
 export default function Sidebar({ profile }: SidebarProps) {
@@ -51,6 +53,11 @@ export default function Sidebar({ profile }: SidebarProps) {
       title: "History",
       icon: History,
       href: "/history",
+    },
+    {
+      title: "Vault",
+      icon: ShieldCheck,
+      href: "/vault",
     },
     {
       title: "Profile",

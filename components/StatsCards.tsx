@@ -1,5 +1,6 @@
 import { Wallet, FileText, Clock } from "lucide-react";
 import { Invoice } from "@/lib/types";
+import { formatLocalAmount, getInvoiceLocalAmount, isPaidStatus } from "@/lib/businessData";
 
 interface StatsCardsProps {
   invoices: Invoice[];
@@ -7,13 +8,17 @@ interface StatsCardsProps {
 
 export default function StatsCards({ invoices }: StatsCardsProps) {
   
-  const totalRevenue = invoices.reduce((acc, inv) => acc + Number(inv.amount || 0), 0);
-  const pendingCount = invoices.filter(inv => inv.status !== "Paid").length;
+  const paidInvoices = invoices.filter((inv) => isPaidStatus(inv.status));
+  const primaryCurrency = paidInvoices[0]?.currency || invoices[0]?.currency || "NGN";
+  const totalRevenue = paidInvoices
+    .filter((inv) => (inv.currency || primaryCurrency) === primaryCurrency)
+    .reduce((acc, inv) => acc + getInvoiceLocalAmount(inv), 0);
+  const pendingCount = invoices.filter((inv) => !isPaidStatus(inv.status)).length;
 
   const stats = [
     {
       title: "Total Revenue",
-      value: `${totalRevenue.toLocaleString()} sats`,
+      value: formatLocalAmount(totalRevenue, primaryCurrency),
       icon: Wallet,
       color: "text-lime-600",
       bg: "bg-lime-50"

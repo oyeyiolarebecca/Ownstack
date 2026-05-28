@@ -7,93 +7,64 @@ import RecentInvoices from "@/components/RecentInvoices";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { getStoredNostrUser } from "@/lib/nostr";
 import { InvoiceSkeleton } from "@/components/Skeleton";
-
-interface Invoice {
-  id: number;
-  customer: string;
-  service: string;
-  amount: number;
-  status: string;
-}
-
 import MobileHeader from "@/components/MobileHeader";
+import { BusinessProfile, Invoice } from "@/lib/types";
+import { defaultNostrProfile, loadLocalInvoices, normalizeProfile, saveLocalInvoices } from "@/lib/businessData";
 
 export default function HistoryPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     async function init() {
       setIsLoading(true);
-      await Promise.all([fetchInvoices(), fetchProfile()]);
-      setIsLoading(false);
+      const { data: { user } } = await supabase.auth.getUser();
+      const nostrUser = getStoredNostrUser();
+
+      if (user) {
+        const [{ data: profileData }, { data: invoiceData }] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", user.id).single(),
+          supabase.from("invoices").select("*").eq("user_id", user.id).order("id", { ascending: false }),
+        ]);
+
+        if (!mounted) return;
+        if (profileData) setProfile(normalizeProfile(profileData));
+        setInvoices(invoiceData || []);
+      } else if (nostrUser) {
+        const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
+        if (!mounted) return;
+        setProfile(localProfile ? normalizeProfile(JSON.parse(localProfile)) : defaultNostrProfile(nostrUser));
+        setInvoices(loadLocalInvoices(nostrUser.pubkey));
+      }
+
+      if (mounted) setIsLoading(false);
     }
+
     init();
 
-    // Subscribe to real-time updates for invoices
-    const subscription = supabase
-      .channel('history-updates')
-      .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'invoices' }, (payload: any) => {
-        console.log('History real-time update:', payload);
-        if (payload.eventType === 'UPDATE') {
-          const updated = payload.new as Invoice;
-          setInvoices(prev => prev.map(inv => inv.id === updated.id ? updated : inv));
-        } else if (payload.eventType === 'INSERT') {
-          const newInvoice = payload.new as Invoice;
-          setInvoices(prev => [newInvoice, ...prev]);
-        }
-      })
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(subscription);
+      mounted = false;
     };
   }, []);
-
-  async function fetchProfile() {
-    const { data: { user } } = await supabase.auth.getUser();
-    const nostrUser = getStoredNostrUser();
-
-    if (user) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-        if (data) setProfile(data);
-    } else if (nostrUser) {
-        const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
-        if (localProfile) setProfile(JSON.parse(localProfile));
-    }
-  }
-
-  async function fetchInvoices() {
-    const { data: { user } } = await supabase.auth.getUser();
-    const nostrUser = getStoredNostrUser();
-
-    if (user) {
-        const { data } = await supabase.from("invoices").select("*").order("id", { ascending: false });
-        if (data) {
-            setInvoices(data);
-            return;
-        }
-    }
-
-    const storageKey = nostrUser ? `invoices_${nostrUser.pubkey}` : "invoices";
-    const localInvoices = localStorage.getItem(storageKey);
-    if (localInvoices) setInvoices(JSON.parse(localInvoices));
-  }
 
   async function updateInvoiceStatus(id: number, newStatus: string) {
     const { data: { user } } = await supabase.auth.getUser();
     const nostrUser = getStoredNostrUser();
 
     if (user) {
-        await supabase.from("invoices").update({ status: newStatus }).eq("id", id);
+      await supabase.from("invoices").update({ status: newStatus }).eq("id", id).eq("user_id", user.id);
+      setInvoices((current) => current.map((invoice) => invoice.id === id ? { ...invoice, status: newStatus } : invoice));
+      return;
     }
 
-    const storageKey = nostrUser ? `invoices_${nostrUser.pubkey}` : "invoices";
-    const localInvoices = JSON.parse(localStorage.getItem(storageKey) || "[]");
-    const updated = localInvoices.map((inv: any) => inv.id === id ? { ...inv, status: newStatus } : inv);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    setInvoices(updated);
+    if (nostrUser) {
+      const updated = loadLocalInvoices(nostrUser.pubkey).map((inv) => inv.id === id ? { ...inv, status: newStatus } : inv);
+      saveLocalInvoices(nostrUser.pubkey, updated);
+      setInvoices(updated);
+    }
   }
 
   return (

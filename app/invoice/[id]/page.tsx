@@ -5,78 +5,65 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import InvoicePreview from "@/components/InvoicePreview";
 import Link from "next/link";
+import { BusinessProfile, Invoice } from "@/lib/types";
+import { findLocalInvoiceById, formatLocalAmount, getInvoiceProofId, getInvoiceSats, isPaidStatus, normalizeProfile, paymentMethodLabels, updateLocalInvoiceStatus } from "@/lib/businessData";
 
 export default function PublicInvoicePage() {
   const params = useParams();
-  const id = params.id;
-  const [invoice, setInvoice] = useState<any>(null);
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<BusinessProfile | null>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchInvoice();
+    if (!id) return;
+    const invoiceId = id;
+
+    async function fetchInvoice() {
+      setLoading(true);
+
+      try {
+        const localInvoice = findLocalInvoiceById(invoiceId);
+        if (localInvoice) {
+          setInvoice(localInvoice);
+          setProfile(localInvoice.profile ? normalizeProfile(localInvoice.profile) : null);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("invoices")
+          .select("*")
+          .eq("id", invoiceId)
+          .single();
+
+        if (error) throw error;
+        const remoteInvoice = data as Invoice;
+        setInvoice(remoteInvoice);
+
+        if (remoteInvoice.user_id) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", remoteInvoice.user_id)
+            .single();
+          if (profileData) setProfile(normalizeProfile(profileData));
+        }
+      } catch (err) {
+        console.error("Error fetching public invoice:", err);
+        setInvoice(null);
+      } finally {
+        setLoading(false);
+      }
     }
+
+    fetchInvoice();
   }, [id]);
 
-  // Automated polling for payment status
-  useEffect(() => {
-    if (!invoice || invoice.status === "Paid" || invoice.status === "Completed") return;
+  function handleSettled() {
+    if (!id || !invoice) return;
 
-    const interval = setInterval(() => {
-      fetchInvoice();
-    }, 5000); // Check every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [invoice?.status, id]);
-
-  async function fetchInvoice() {
-    // We only set loading true for the first fetch to avoid flickering
-    if (!invoice) setLoading(true); 
-    
-    try {
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
-      setInvoice(data);
-
-      // Fetch the creator's profile for the lightning address
-      if (data.user_id && !profile) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.user_id)
-          .single();
-        if (profileData) setProfile(profileData);
-      }
-    } catch (err) {
-      console.error("Error fetching public invoice:", err);
-    } finally {
-      if (loading) {
-        // Small artificial delay for premium feel on first load
-        setTimeout(() => setLoading(false), 800);
-      }
-    }
-  }
-
-  async function handleSettled() {
-    if (!id) return;
-    try {
-      const { error } = await supabase
-        .from("invoices")
-        .update({ status: "Paid" })
-        .eq("id", id);
-      
-      if (error) throw error;
-      // Refresh local state
-      fetchInvoice();
-    } catch (err) {
-      console.error("Failed to update settlement:", err);
-    }
+    const localUpdate = updateLocalInvoiceStatus(id, "Paid");
+    setInvoice(localUpdate || { ...invoice, status: "Paid" });
   }
 
   if (loading) {
@@ -92,7 +79,7 @@ export default function PublicInvoicePage() {
     return (
       <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-6 text-center">
         <h1 className="text-4xl font-black text-[#0F172A]">404</h1>
-        <p className="text-slate-500 mt-4 text-lg">We couldn't find that invoice.</p>
+        <p className="text-slate-500 mt-4 text-lg">We could not find that invoice.</p>
         <Link href="/" className="mt-8 bg-black text-white px-8 py-4 rounded-3xl font-bold">
           Go Home
         </Link>
@@ -102,82 +89,92 @@ export default function PublicInvoicePage() {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center p-6 md:p-12">
-      
       <div className="max-w-4xl w-full">
-        
-        {/* BRANDING */}
         <div className="flex items-center gap-2 mb-12 justify-center md:justify-start">
           <div className="w-8 h-8 rounded-lg bg-lime-400 text-black flex items-center justify-center font-bold">₿</div>
           <span className="text-xl font-black text-[#0F172A]">OwnStack</span>
         </div>
 
         <div className="grid lg:grid-cols-5 gap-12">
-          
           <div className="lg:col-span-3">
             <h1 className="text-4xl font-black text-[#0F172A] leading-tight">
               Invoice for {invoice.customer}
             </h1>
             <p className="text-slate-500 text-lg mt-4 leading-relaxed">
-              This invoice was generated by <strong>{profile?.business_name || "a verified merchant"}</strong> via OwnStack.
+              This invoice was generated by <strong>{profile?.business_name || "an OwnStack merchant"}</strong> as a portable business record.
             </p>
 
             <div className="mt-12 p-8 bg-white rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/5 rounded-full -m-16"></div>
-               <div className="flex items-center justify-between">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-lime-400/5 rounded-full -m-16"></div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Transaction Details</h3>
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${invoice.status === "Paid" || invoice.status === "Completed" ? "bg-lime-100 text-lime-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    {invoice.status}
-                  </div>
-               </div>
-               <div className="mt-6 space-y-4">
-                  <div className="flex justify-between border-b border-slate-50 pb-4">
-                    <span className="text-slate-500">Service</span>
-                    <span className="font-bold text-[#0F172A]">{invoice.service}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-50 pb-4">
-                    <span className="text-slate-500">Amount</span>
-                    <span className="font-bold text-lime-600 font-mono">{Number(invoice.amount).toLocaleString()} sats</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Date</span>
-                    <span className="font-bold text-[#0F172A]">{new Date(invoice.created_at).toLocaleDateString()}</span>
-                  </div>
-               </div>
+                  <p className="mt-1 text-xs font-black uppercase tracking-widest text-lime-600">{getInvoiceProofId(invoice.id)}</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${isPaidStatus(invoice.status) ? "bg-lime-100 text-lime-700" : "bg-yellow-100 text-yellow-700"}`}>
+                  {invoice.status}
+                </div>
+              </div>
+              <div className="mt-6 space-y-4">
+                <div className="flex justify-between border-b border-slate-50 pb-4 gap-4">
+                  <span className="text-slate-500">Service</span>
+                  <span className="font-bold text-[#0F172A] text-right">{invoice.service}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-4">
+                  <span className="text-slate-500">Amount</span>
+                  <span className="font-bold text-lime-600 font-mono">{formatLocalAmount(invoice.local_amount ?? invoice.amount, invoice.currency)}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-4">
+                  <span className="text-slate-500">Bitcoin Equivalent</span>
+                  <span className="font-bold text-[#0F172A] font-mono">{getInvoiceSats(invoice).toLocaleString()} sats</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-4">
+                  <span className="text-slate-500">Payment Method</span>
+                  <span className="font-bold text-[#0F172A]">{paymentMethodLabels[invoice.payment_method || "lightning"] || "Flexible Payment"}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-4">
+                  <span className="text-slate-500">Date</span>
+                  <span className="font-bold text-[#0F172A]">{invoice.created_at ? new Date(invoice.created_at).toLocaleDateString() : "Today"}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-500">Proof ID</span>
+                  <span className="font-bold text-[#0F172A] font-mono text-right">{getInvoiceProofId(invoice.id)}</span>
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
-              <button 
-                onClick={fetchInvoice}
-                disabled={loading}
+              <button
+                onClick={() => setInvoice((current) => current ? { ...current } : current)}
                 className="flex-1 bg-black hover:bg-slate-800 text-white px-8 py-5 rounded-[24px] font-bold transition active:scale-95 flex items-center justify-center gap-3 shadow-xl shadow-slate-200"
               >
-                {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : "Check Payment Status"}
+                Refresh Status
               </button>
-              
+
               <div className="flex-[1.5] flex items-center gap-3 p-4 bg-lime-50 rounded-[24px] border border-lime-100">
-                 <span className="w-10 h-10 bg-lime-400 rounded-xl flex items-center justify-center text-lg shadow-sm">🛡️</span>
-                 <p className="text-xs text-lime-800 font-semibold leading-relaxed">Payments are verified on-chain. Status updates usually take 1-10 minutes.</p>
+                <span className="w-10 h-10 bg-lime-400 rounded-xl flex items-center justify-center text-lg shadow-sm">₿</span>
+                <p className="text-xs text-lime-800 font-semibold leading-relaxed">Lightning payment status is simulated for the MVP unless your wallet completes the WebLN payment flow.</p>
               </div>
             </div>
           </div>
 
           <div className="lg:col-span-2">
-            <InvoicePreview 
-               invoiceData={{
-                 customer: invoice.customer,
-                 service: invoice.service,
-                 amount: invoice.amount
-               }}
-               lightningAddress={profile?.lightning_username}
-               status={invoice.status}
-               onSettled={handleSettled}
+            <InvoicePreview
+              invoiceData={{
+                customer: invoice.customer,
+                service: invoice.service,
+                amount: String(getInvoiceSats(invoice)),
+                localAmount: invoice.local_amount ?? invoice.amount,
+                currency: invoice.currency,
+                paymentMethod: invoice.payment_method,
+              }}
+              lightningAddress={profile?.lightning_username || invoice.lightning_address || "ownstack@getalby.com"}
+              status={invoice.status}
+              onSettled={handleSettled}
             />
           </div>
-
         </div>
-
       </div>
-
     </main>
   );
 }

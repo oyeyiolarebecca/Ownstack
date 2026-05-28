@@ -41,7 +41,7 @@ declare global {
   interface Window {
     nostr?: {
       getPublicKey(): Promise<string>;
-      signEvent(event: any): Promise<any>;
+      signEvent(event: Record<string, unknown>): Promise<Record<string, unknown>>;
     };
   }
 }
