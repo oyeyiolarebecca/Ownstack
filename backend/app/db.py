@@ -14,6 +14,11 @@ from .config import get_settings
 
 
 @lru_cache
-def get_supabase() -> Client:
+def get_supabase() -> Client | None:
     s = get_settings()
-    return create_client(s.SUPABASE_URL, s.SUPABASE_SERVICE_ROLE_KEY)
+    try:
+        if not s.SUPABASE_SERVICE_ROLE_KEY or "placeholder" in s.SUPABASE_SERVICE_ROLE_KEY:
+            return None
+        return create_client(s.SUPABASE_URL, s.SUPABASE_SERVICE_ROLE_KEY)
+    except Exception:
+        return None

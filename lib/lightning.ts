@@ -11,7 +11,7 @@ export async function getLightningInvoice(lightningAddress: string, amountSats: 
   try {
     // Basic validation
     if (!lightningAddress || !lightningAddress.includes("@")) {
-        throw new Error("Invalid Lightning Address format");
+        throw new Error("Invalid Lightning Address format. Please use 'user@domain.com'.");
     }
 
     const [username, domain] = lightningAddress.split("@");

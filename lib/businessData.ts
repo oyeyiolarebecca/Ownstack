@@ -12,12 +12,12 @@ export const emptyProfile: BusinessProfile = {
 
 export function defaultNostrProfile(nostrUser: NostrUser): BusinessProfile {
   return {
-    full_name: "Nostr User",
-    business_name: "My Bitcoin Business",
-    category: "Merchant",
-    lightning_username: "user@getalby.com",
+    full_name: "",
+    business_name: "",
+    category: "",
+    lightning_username: "",
     avatar_url: "",
-    bio: "Portable business identity powered by Bitcoin and Nostr.",
+    bio: "",
     nostr_npub: nostrUser.npub,
   };
 }
@@ -77,6 +77,12 @@ export function getInvoiceProofId(id?: string | number) {
   if (!id) return "OS-PENDING";
   const cleanId = String(id).replace(/[^a-zA-Z0-9]/g, "").slice(-8).toUpperCase();
   return `OS-${cleanId.padStart(6, "0")}`;
+}
+
+export function getVaultProofId(id?: string | number) {
+  if (!id) return "VLT-PENDING";
+  const cleanId = String(id).replace(/[^a-zA-Z0-9]/g, "").slice(-8).toUpperCase();
+  return `VLT-${cleanId.padStart(6, "0")}`;
 }
 
 export function invoiceStorageKey(pubkey: string) {

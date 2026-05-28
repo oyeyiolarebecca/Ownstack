@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
 import RecentInvoices from "@/components/RecentInvoices";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { getStoredNostrUser } from "@/lib/nostr";
+import { getStoredNostrUser, publishInvoiceEvent } from "@/lib/nostr";
 import { InvoiceSkeleton } from "@/components/Skeleton";
 import MobileHeader from "@/components/MobileHeader";
 import { BusinessProfile, Invoice } from "@/lib/types";
@@ -64,6 +64,19 @@ export default function HistoryPage() {
       const updated = loadLocalInvoices(nostrUser.pubkey).map((inv) => inv.id === id ? { ...inv, status: newStatus } : inv);
       saveLocalInvoices(nostrUser.pubkey, updated);
       setInvoices(updated);
+
+      // Critical MVP feature: Publish proof of sale to Nostr
+      if (newStatus === "Paid") {
+          const inv = updated.find(i => i.id === id);
+          if (inv) {
+              publishInvoiceEvent({
+                  id: inv.id,
+                  customer: inv.customer,
+                  amount_ngn: Number(inv.local_amount || inv.amount),
+                  status: inv.status
+              });
+          }
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
+import Link from "next/link";
 
 export default function Hero() {
   return (
@@ -27,10 +28,10 @@ export default function Hero() {
           </p>
 
           <div className="flex flex-wrap gap-4 mt-10">
-            <button className="bg-lime-400 hover:bg-lime-300 text-black px-10 py-5 rounded-2xl font-black text-lg transition shadow-[0_8px_20px_-4px_rgba(163,230,53,0.5)] flex items-center gap-2 group">
+            <Link href="/dashboard" className="bg-lime-400 hover:bg-lime-300 text-black px-10 py-5 rounded-2xl font-black text-lg transition shadow-[0_8px_20px_-4px_rgba(163,230,53,0.5)] flex items-center gap-2 group">
               Get Started Free
               <span className="group-hover:translate-x-1 transition">→</span>
-            </button>
+            </Link>
 
             <button className="bg-white border border-slate-200 hover:border-slate-300 text-[#0F172A] px-10 py-5 rounded-2xl font-black text-lg transition flex items-center gap-2 group">
               <span className="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-xs group-hover:bg-slate-50">▶</span>

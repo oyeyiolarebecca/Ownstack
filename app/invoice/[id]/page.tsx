@@ -7,6 +7,7 @@ import InvoicePreview from "@/components/InvoicePreview";
 import Link from "next/link";
 import { BusinessProfile, Invoice } from "@/lib/types";
 import { findLocalInvoiceById, formatLocalAmount, getInvoiceProofId, getInvoiceSats, isPaidStatus, normalizeProfile, paymentMethodLabels, updateLocalInvoiceStatus } from "@/lib/businessData";
+import { getStoredNostrUser, publishInvoiceEvent } from "@/lib/nostr";
 
 export default function PublicInvoicePage() {
   const params = useParams();
@@ -26,7 +27,18 @@ export default function PublicInvoicePage() {
         const localInvoice = findLocalInvoiceById(invoiceId);
         if (localInvoice) {
           setInvoice(localInvoice);
-          setProfile(localInvoice.profile ? normalizeProfile(localInvoice.profile) : null);
+          
+          // Dynamic profile lookup: Prefer latest profile from localStorage over snapshot
+          if (localInvoice.owner_pubkey) {
+              const latestProfile = localStorage.getItem(`profile_${localInvoice.owner_pubkey}`);
+              if (latestProfile) {
+                  setProfile(normalizeProfile(JSON.parse(latestProfile)));
+              } else {
+                  setProfile(localInvoice.profile ? normalizeProfile(localInvoice.profile) : null);
+              }
+          } else {
+              setProfile(localInvoice.profile ? normalizeProfile(localInvoice.profile) : null);
+          }
           return;
         }
 
@@ -57,13 +69,40 @@ export default function PublicInvoicePage() {
     }
 
     fetchInvoice();
-  }, [id]);
+
+    // Polling for NUBAN if missing
+    let pollInterval: NodeJS.Timeout;
+    if (id && !invoice?.virtual_account_number && invoice?.payment_method === "bank_transfer") {
+        pollInterval = setInterval(() => {
+            const updated = findLocalInvoiceById(id);
+            if (updated?.virtual_account_number) {
+                setInvoice(updated);
+                clearInterval(pollInterval);
+            }
+        }, 3000);
+    }
+
+    return () => {
+        if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [id, invoice?.virtual_account_number, invoice?.payment_method]);
 
   function handleSettled() {
     if (!id || !invoice) return;
 
     const localUpdate = updateLocalInvoiceStatus(id, "Paid");
     setInvoice(localUpdate || { ...invoice, status: "Paid" });
+
+    // Critical MVP feature: Publish proof of sale to Nostr
+    const nostrUser = getStoredNostrUser();
+    if (nostrUser) {
+        publishInvoiceEvent({
+            id: invoice.id,
+            customer: invoice.customer,
+            amount_ngn: Number(invoice.local_amount || invoice.amount),
+            status: "Paid"
+        });
+    }
   }
 
   if (loading) {
@@ -150,11 +189,6 @@ export default function PublicInvoicePage() {
               >
                 Refresh Status
               </button>
-
-              <div className="flex-[1.5] flex items-center gap-3 p-4 bg-lime-50 rounded-[24px] border border-lime-100">
-                <span className="w-10 h-10 bg-lime-400 rounded-xl flex items-center justify-center text-lg shadow-sm">₿</span>
-                <p className="text-xs text-lime-800 font-semibold leading-relaxed">Lightning payment status is simulated for the MVP unless your wallet completes the WebLN payment flow.</p>
-              </div>
             </div>
           </div>
 
@@ -167,6 +201,9 @@ export default function PublicInvoicePage() {
                 localAmount: invoice.local_amount ?? invoice.amount,
                 currency: invoice.currency,
                 paymentMethod: invoice.payment_method,
+                virtualAccountNumber: invoice.virtual_account_number,
+                virtualAccountBank: invoice.virtual_account_bank,
+                virtualAccountName: invoice.virtual_account_name,
               }}
               lightningAddress={profile?.lightning_username || invoice.lightning_address || "ownstack@getalby.com"}
               status={invoice.status}

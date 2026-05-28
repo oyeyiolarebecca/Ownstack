@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { loginWithNostr, getStoredNostrUser } from "@/lib/nostr";
+import { loginWithNostr, getStoredNostrUser, restoreLedgerFromNostr } from "@/lib/nostr";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -12,21 +12,42 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        // Redirect if already logged in via Nostr
-        if (getStoredNostrUser()) {
-            router.push("/dashboard");
-        }
-    }, [router]);
+    // Removed auto-redirect to allow identity switching and verification flow
+
+
+    const [pendingIdentity, setPendingIdentity] = useState<{ pubkey: string; npub: string } | null>(null);
 
     async function handleNostrLogin() {
         setIsLoading(true);
         try {
-            await loginWithNostr();
+            const identity = await import("@/lib/nostr").then(m => m.getNostrIdentity());
+            setPendingIdentity(identity);
+        } catch (error) {
+            alert(error instanceof Error ? error.message : "Connection failed");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function confirmNostrLogin() {
+        if (!pendingIdentity) return;
+        setIsLoading(true);
+        try {
+            await supabase.auth.signOut();
+            // Removed localStorage.clear() to preserve user profiles and data
+            
+            // Re-import to ensure we're using the persistence logic
+            const { loginWithNostr, restoreLedgerFromNostr } = await import("@/lib/nostr");
+            const { pubkey } = await loginWithNostr(); // This will persist the key now
+            
+            try {
+                await restoreLedgerFromNostr(pubkey);
+            } catch (restoreErr) {
+                console.warn("Ledger restoration failed", restoreErr);
+            }
             router.push("/dashboard");
         } catch (error) {
-            const message = error instanceof Error ? error.message : "Nostr login failed";
-            alert(message);
+            alert(error instanceof Error ? error.message : "Nostr login failed");
         } finally {
             setIsLoading(false);
         }
@@ -92,32 +113,57 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-6">
-                    <button
-                        onClick={handleNostrLogin}
-                        disabled={isLoading}
-                        className="
-                            w-full
-                            bg-slate-900
-                            hover:bg-slate-800
-                            text-white
-                            py-5
-                            rounded-2xl
-                            font-bold
-                            transition-all
-                            flex
-                            items-center
-                            justify-center
-                            gap-3
-                            shadow-lg
-                            shadow-slate-200
-                            hover:scale-[1.02]
-                            active:scale-[0.98]
-                            disabled:opacity-50
-                        "
-                    >
-                        <span className="text-xl">🪪</span>
-                        {isLoading ? "Connecting..." : "Login with Nostr"}
-                    </button>
+                    {pendingIdentity ? (
+                        <div className="bg-lime-50 border border-lime-100 rounded-3xl p-6 space-y-4">
+                            <p className="text-xs font-bold text-lime-700 uppercase tracking-widest">Verify Identity</p>
+                            <div className="bg-white p-4 rounded-xl border border-lime-100 break-all text-[10px] font-mono text-slate-600">
+                                {pendingIdentity.npub}
+                            </div>
+                            <p className="text-sm text-slate-600 font-medium">Connect this Nostr account?</p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={confirmNostrLogin}
+                                    disabled={isLoading}
+                                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-800 transition disabled:opacity-50"
+                                >
+                                    {isLoading ? "Connecting..." : "Yes, Connect"}
+                                </button>
+                                <button
+                                    onClick={() => setPendingIdentity(null)}
+                                    className="px-4 py-3 border border-slate-200 rounded-xl font-bold text-sm text-slate-500 hover:bg-white transition"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleNostrLogin}
+                            disabled={isLoading}
+                            className="
+                                w-full
+                                bg-slate-900
+                                hover:bg-slate-800
+                                text-white
+                                py-5
+                                rounded-2xl
+                                font-bold
+                                transition-all
+                                flex
+                                items-center
+                                justify-center
+                                gap-3
+                                shadow-lg
+                                shadow-slate-200
+                                hover:scale-[1.02]
+                                active:scale-[0.98]
+                                disabled:opacity-50
+                            "
+                        >
+                            <span className="text-xl">🪪</span>
+                            {isLoading ? "Connecting..." : "Login with Nostr"}
+                        </button>
+                    )}
 
                     <div className="relative flex items-center gap-4 py-2">
                         <div className="flex-1 h-px bg-slate-100"></div>

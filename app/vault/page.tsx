@@ -15,6 +15,7 @@ import {
   formatLocalAmount,
   loadLocalVaultDocuments,
   normalizeProfile,
+  getVaultProofId,
   saveLocalVaultDocuments,
 } from "@/lib/businessData";
 
@@ -84,7 +85,8 @@ export default function VaultPage() {
   const vaultStats = useMemo(() => {
     const receipts = documents.filter((doc) => doc.document_type === "receipt").length;
     const totalValue = documents.reduce((sum, doc) => sum + Number(doc.amount || 0), 0);
-    const currency = documents.find((doc) => doc.amount)?.currency || "NGN";
+    // Default to NGN for the aggregate stat to avoid confusion with mixed records
+    const currency = "NGN";
 
     return { receipts, totalValue, currency };
   }, [documents]);
@@ -288,23 +290,27 @@ export default function VaultPage() {
                               </span>
                             </div>
                             <p className="text-sm text-slate-500 mt-1 line-clamp-2">{document.note || "No extra note added."}</p>
-                            <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold text-slate-400">
-                              <span>{document.created_at ? new Date(document.created_at).toLocaleDateString() : "Today"}</span>
+                            <div className="mt-2 flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                              <span className="text-lime-600 bg-lime-50 px-2 py-0.5 rounded-md border border-lime-100">
+                                {getVaultProofId(document.id)}
+                              </span>
+                              <span>Created {document.created_at ? new Date(document.created_at).toLocaleDateString() : "Today"}</span>
+                              {document.updated_at && (
+                                <span className="text-slate-500">Edited {new Date(document.updated_at).toLocaleDateString()}</span>
+                              )}
                               {document.amount ? <span>{formatLocalAmount(document.amount, document.currency)}</span> : null}
-                              {document.file_name ? <span>{document.file_name}</span> : null}
+                              <span className="text-slate-300">|</span>
+                              <span className="truncate max-w-[120px]">Owner: {document.owner_pubkey || document.user_id || "System"}</span>
                             </div>
                           </div>
                         </div>
-
+ 
                         <div className="flex items-center gap-2 md:justify-end">
                           {document.file_url ? (
                             <a href={document.file_url} target="_blank" rel="noreferrer" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-lime-300 hover:text-lime-700">
-                              Open
+                              Open Record
                             </a>
                           ) : null}
-                          <button type="button" onClick={() => deleteDocument(document.id)} className="h-10 w-10 rounded-2xl border border-slate-200 text-slate-400 transition hover:border-red-100 hover:bg-red-50 hover:text-red-500 flex items-center justify-center" aria-label={`Delete ${document.title}`}>
-                            <X className="h-4 w-4" />
-                          </button>
                         </div>
                       </article>
                     ))

@@ -81,23 +81,24 @@ async def allocate_nuban(body: AllocateNubanIn) -> AllocateNubanOut:
     that one instead of creating another.
     """
     sb = get_supabase()
-    existing = (
-        sb.table("invoices")
-        .select("id,virtual_account_number,virtual_account_bank,virtual_account_name,bitnob_reference")
-        .eq("id", body.invoice_id)
-        .single()
-        .execute()
-    )
-    row = existing.data or {}
-    if row.get("virtual_account_number"):
-        return AllocateNubanOut(
-            invoice_id=body.invoice_id,
-            account_number=row["virtual_account_number"],
-            bank_name=row.get("virtual_account_bank") or "",
-            account_name=row.get("virtual_account_name") or "",
-            reference=row.get("bitnob_reference") or "",
-            is_mock=False,
+    if sb:
+        existing = (
+            sb.table("invoices")
+            .select("id,virtual_account_number,virtual_account_bank,virtual_account_name,bitnob_reference")
+            .eq("id", body.invoice_id)
+            .single()
+            .execute()
         )
+        row = existing.data or {}
+        if row.get("virtual_account_number"):
+            return AllocateNubanOut(
+                invoice_id=body.invoice_id,
+                account_number=row["virtual_account_number"],
+                bank_name=row.get("virtual_account_bank") or "",
+                account_name=row.get("virtual_account_name") or "",
+                reference=row.get("bitnob_reference") or "",
+                is_mock=False,
+            )
 
     va = await get_bitnob().create_virtual_account(
         invoice_id=body.invoice_id,
@@ -106,15 +107,16 @@ async def allocate_nuban(body: AllocateNubanIn) -> AllocateNubanOut:
         amount_ngn=body.amount_ngn,
     )
 
-    sb.table("invoices").update(
-        {
-            "virtual_account_number": va.account_number,
-            "virtual_account_bank": va.bank_name,
-            "virtual_account_name": va.account_name,
-            "bitnob_reference": va.reference,
-            "amount_ngn": body.amount_ngn,
-        }
-    ).eq("id", body.invoice_id).execute()
+    if sb:
+        sb.table("invoices").update(
+            {
+                "virtual_account_number": va.account_number,
+                "virtual_account_bank": va.bank_name,
+                "virtual_account_name": va.account_name,
+                "bitnob_reference": va.reference,
+                "amount_ngn": body.amount_ngn,
+            }
+        ).eq("id", body.invoice_id).execute()
 
     return AllocateNubanOut(
         invoice_id=body.invoice_id,

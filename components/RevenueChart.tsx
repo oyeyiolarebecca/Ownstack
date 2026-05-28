@@ -7,15 +7,6 @@ import {
     Tooltip,
 } from "recharts";
 
-const data = [
-    { month: "Jan", revenue: 1200 },
-    { month: "Feb", revenue: 2100 },
-    { month: "Mar", revenue: 1800 },
-    { month: "Apr", revenue: 3200 },
-    { month: "May", revenue: 4200 },
-    { month: "Jun", revenue: 5100 },
-];
-
 import { Invoice } from "@/lib/types";
 import { formatLocalAmount, getInvoiceLocalAmount, isPaidStatus } from "@/lib/businessData";
 
@@ -24,8 +15,28 @@ interface RevenueChartProps {
 }
 
 export default function RevenueChart({ invoices }: RevenueChartProps) {
-    // TOTAL REVENUE calculation
+    // Process real data for the chart
+    const monthlyData = [
+        { month: "Jan", revenue: 0 },
+        { month: "Feb", revenue: 0 },
+        { month: "Mar", revenue: 0 },
+        { month: "Apr", revenue: 0 },
+        { month: "May", revenue: 0 },
+        { month: "Jun", revenue: 0 },
+    ];
+
     const paidInvoices = invoices.filter((inv) => isPaidStatus(inv.status));
+    
+    // Fill buckets
+    paidInvoices.forEach(inv => {
+        if (!inv.created_at) return;
+        const date = new Date(inv.created_at);
+        const monthIndex = date.getMonth();
+        if (monthIndex >= 0 && monthIndex < 6) {
+            monthlyData[monthIndex].revenue += getInvoiceLocalAmount(inv);
+        }
+    });
+
     const primaryCurrency = paidInvoices[0]?.currency || invoices[0]?.currency || "NGN";
     const totalRevenue = paidInvoices
         .filter((inv) => (inv.currency || primaryCurrency) === primaryCurrency)
@@ -49,7 +60,7 @@ export default function RevenueChart({ invoices }: RevenueChartProps) {
                             Revenue Insights
                         </h2>
                         <p className="text-slate-500 text-xs font-medium mt-1">
-                            Satoshi inflow performance
+                            Naira inflow performance
                         </p>
                     </div>
 
@@ -71,9 +82,9 @@ export default function RevenueChart({ invoices }: RevenueChartProps) {
                 </div>
 
                 {/* CHART */}
-                <div className="h-[350px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data}>
+                <div className="h-[350px] min-h-[350px] w-full">
+                    <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                        <AreaChart data={monthlyData}>
                             <defs>
                                 <linearGradient
                                     id="colorRevenue"

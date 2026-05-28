@@ -5,14 +5,13 @@ import DashboardHeader from "@/components/DashboardHeader";
 import StatsCards from "@/components/StatsCards";
 import RecentInvoices from "@/components/RecentInvoices";
 import ActivityFeed from "@/components/ActivityFeed";
-import JourneyProgress from "@/components/JourneyProgress";
 import RevenueChart from "@/components/RevenueChart";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Skeleton, StatsSkeleton, InvoiceSkeleton } from "@/components/Skeleton";
-import { getStoredNostrUser } from "@/lib/nostr";
+import { getStoredNostrUser, publishInvoiceEvent } from "@/lib/nostr";
 import { BusinessProfile, Invoice } from "@/lib/types";
 import MobileHeader from "@/components/MobileHeader";
 import { defaultNostrProfile, loadLocalInvoices, loadLocalVaultDocuments, normalizeProfile, saveLocalInvoices } from "@/lib/businessData";
@@ -75,11 +74,29 @@ export default function DashboardPage() {
     }
 
     init();
+    return () => { mounted = false; };
+  }, [router]);
+
+  // Supabase Realtime for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("invoice-updates")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "invoices" },
+        (payload) => {
+          const updatedInv = payload.new as Invoice;
+          setInvoices((current) =>
+            current.map((inv) => (inv.id === updatedInv.id ? { ...inv, ...updatedInv } : inv))
+          );
+        }
+      )
+      .subscribe();
 
     return () => {
-      mounted = false;
+      supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, []);
 
   async function updateInvoiceStatus(id: number, newStatus: string) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -104,6 +121,19 @@ export default function DashboardPage() {
       );
       saveLocalInvoices(nostrUser.pubkey, updatedInvoices);
       setInvoices(updatedInvoices);
+
+      // Critical MVP feature: Publish proof of sale to Nostr
+      if (newStatus === "Paid") {
+          const inv = updatedInvoices.find(i => i.id === id);
+          if (inv) {
+              publishInvoiceEvent({
+                  id: inv.id,
+                  customer: inv.customer,
+                  amount_ngn: Number(inv.local_amount || inv.amount),
+                  status: inv.status
+              });
+          }
+      }
     }
   }
 
@@ -149,7 +179,6 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <JourneyProgress profile={profile} invoices={invoices} vaultCount={vaultCount} />
                 <StatsCards invoices={invoices} />
                 <div className="grid lg:grid-cols-3 gap-8 mt-8">
                   <div className="lg:col-span-2">

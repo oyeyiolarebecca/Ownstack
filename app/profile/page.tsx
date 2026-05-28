@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [profile, setProfile] = useState<BusinessProfile>(emptyProfile);
+  const [invoices, setInvoices] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -22,16 +23,22 @@ export default function ProfilePage() {
       const nostrUser = getStoredNostrUser();
 
       if (user) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-        if (data) {
-          setProfile(normalizeProfile(data));
-          return;
-        }
+        const [{ data: profileData }, { data: invoiceData }] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", user.id).single(),
+          supabase.from("invoices").select("*").eq("user_id", user.id),
+        ]);
+        
+        if (profileData) setProfile(normalizeProfile(profileData));
+        if (invoiceData) setInvoices(invoiceData);
+        return;
       }
 
       if (nostrUser) {
         const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
         setProfile(localProfile ? normalizeProfile(JSON.parse(localProfile)) : defaultNostrProfile(nostrUser));
+        
+        const { loadLocalInvoices } = await import("@/lib/businessData");
+        setInvoices(loadLocalInvoices(nostrUser.pubkey));
       }
     }
 
@@ -179,7 +186,7 @@ export default function ProfilePage() {
                   <h2 className="text-xl font-bold text-slate-800">Public Preview</h2>
                   <span className="text-[10px] font-black uppercase tracking-widest text-lime-600 bg-lime-50 px-3 py-1 rounded-full border border-lime-100">Live</span>
                 </div>
-                <BusinessProfileCard profile={profile} invoices={[]} />
+                <BusinessProfileCard profile={profile} invoices={invoices} />
               </div>
             </div>
           </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getStoredNostrUser } from "@/lib/nostr";
+import { normalizeProfile } from "@/lib/businessData";
 
 export default function ProtectedRoute({
   children,
@@ -11,6 +12,7 @@ export default function ProtectedRoute({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +27,24 @@ export default function ProtectedRoute({
         return;
       }
 
+      // Check for mandatory profile onboarding
+      let hasProfile = false;
+      if (user) {
+        const { data } = await supabase.from("profiles").select("business_name").eq("id", user.id).single();
+        if (data?.business_name) hasProfile = true;
+      } else if (nostrUser) {
+        const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
+        if (localProfile) {
+          const profile = normalizeProfile(JSON.parse(localProfile));
+          if (profile.business_name) hasProfile = true;
+        }
+      }
+
+      if (!hasProfile && pathname !== "/profile") {
+        router.push("/profile");
+        return;
+      }
+
       if (mounted) setLoading(false);
     }
 
@@ -33,7 +53,7 @@ export default function ProtectedRoute({
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, pathname]);
 
   if (loading) {
     return (

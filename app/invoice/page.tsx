@@ -43,9 +43,9 @@ export default function InvoicePage() {
   }, []);
 
   const [invoiceData, setInvoiceData] = useState<InvoiceFormData>({
-    customer: "David",
-    service: "Website Design",
-    localAmount: "25000",
+    customer: "",
+    service: "",
+    localAmount: "",
     currency: "NGN",
     paymentMethod: "bank_transfer",
   });
@@ -109,15 +109,61 @@ export default function InvoicePage() {
           const savedInvoice = { ...newInvoice, ...data, profile: activeProfile || undefined } as Invoice;
           savePublicInvoice(savedInvoice);
           setSavedInvoiceId(String(savedInvoice.id));
+
+          // Call backend for NUBAN allocation
+          const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          try {
+              fetch(`${API}/invoices/allocate-nuban`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ invoice_id: data.id })
+              }).catch(e => console.error("NUBAN allocation fetch failed:", e));
+          } catch (e) {
+              console.error("NUBAN allocation error:", e);
+          }
         }
       }
 
       if (nostrUser) {
         const existingInvoices = loadLocalInvoices(nostrUser.pubkey);
-        const invoicesWithId = [newInvoice, ...existingInvoices];
-        saveLocalInvoices(nostrUser.pubkey, invoicesWithId);
+        
+        // Initial save
+        saveLocalInvoices(nostrUser.pubkey, [newInvoice, ...existingInvoices]);
         savePublicInvoice(newInvoice);
         setSavedInvoiceId(String(newInvoice.id));
+
+        // Call backend for NUBAN allocation if needed
+        if (newInvoice.payment_method === "bank_transfer") {
+            const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+            try {
+                const response = await fetch(`${API}/invoices/allocate-nuban`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        invoice_id: newInvoice.id,
+                        customer_name: newInvoice.customer,
+                        amount_ngn: newInvoice.local_amount
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const updatedInvoice = {
+                        ...newInvoice,
+                        virtual_account_number: data.account_number,
+                        virtual_account_bank: data.bank_name,
+                        virtual_account_name: data.account_name,
+                        bitnob_reference: data.reference,
+                    };
+                    // Save the updated version
+                    const updatedList = [updatedInvoice, ...existingInvoices];
+                    saveLocalInvoices(nostrUser.pubkey, updatedList);
+                    savePublicInvoice(updatedInvoice);
+                }
+            } catch (e) {
+                console.error("Nostr NUBAN allocation error:", e);
+            }
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

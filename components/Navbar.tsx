@@ -48,23 +48,13 @@ export default function Navbar() {
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bitcoin Network</span>
           </div>
 
-          {isAuthenticated ? (
-            <Link 
-              href="/dashboard"
-              className="flex items-center gap-2 bg-lime-400 hover:bg-lime-500 transition px-6 py-2.5 rounded-2xl font-bold text-sm text-black shadow-lg shadow-lime-100"
-            >
-              Go to Dashboard
-              <span className="text-lg">→</span>
-            </Link>
-          ) : (
-            <Link 
-              href="/sign-in"
-              className="hidden sm:flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 transition px-5 py-2.5 rounded-2xl font-bold text-sm text-[#0F172A] shadow-sm"
-            >
-               <span className="text-slate-400 text-lg">☆</span>
-               Login with Nostr
-            </Link>
-          )}
+          <Link 
+            href={isAuthenticated ? "/dashboard" : "/login"}
+            className="flex items-center gap-2 bg-lime-400 hover:bg-lime-500 transition px-6 py-2.5 rounded-2xl font-bold text-sm text-black shadow-lg shadow-lime-100"
+          >
+            Go to Dashboard
+            <span className="text-lg">→</span>
+          </Link>
 
         </div>
 

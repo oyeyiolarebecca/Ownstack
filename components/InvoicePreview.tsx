@@ -13,6 +13,9 @@ interface InvoicePreviewProps {
     localAmount?: string | number;
     currency?: string;
     paymentMethod?: string;
+    virtualAccountNumber?: string;
+    virtualAccountBank?: string;
+    virtualAccountName?: string;
   };
   lightningAddress?: string;
   status?: string;
@@ -81,7 +84,22 @@ export default function InvoicePreview({
     }
   }
 
-  function simulateSettlement() {
+  async function simulateSettlement() {
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    const invoiceId = (invoiceData as any).id || (invoiceData as any).invoice_id;
+
+    if (API && invoiceId) {
+      try {
+        await fetch(`${API}/webhooks/bitnob/simulate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoice_id: Number(invoiceId) }),
+        });
+      } catch (err) {
+        console.error("Simulation call failed:", err);
+      }
+    }
+    
     setIsLocallySettled(true);
     onSettled?.();
   }
@@ -123,23 +141,61 @@ export default function InvoicePreview({
             </div>
           </div>
         ) : (
-          <>
-            <QRCode value={qrValue} size={220} />
-            {!paymentRequest && (
-              <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center p-6 text-center">
-                <p className="text-slate-600 text-xs font-bold uppercase tracking-wider bg-white/90 px-4 py-2 rounded-full border border-slate-200 shadow-sm">
-                  Demo QR
-                </p>
+          <div className="w-full flex flex-col items-center gap-8">
+            {invoiceData.paymentMethod === "bank_transfer" ? (
+              <div className="w-full space-y-4">
+                <div className="bg-lime-50 rounded-2xl p-6 border border-lime-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-lime-600 mb-4 text-center">NUBAN BANK TRANSFER</p>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center border-b border-white pb-2">
+                      <span className="text-xs text-slate-500 uppercase font-bold tracking-tighter">Bank Name</span>
+                      <span className="text-sm font-black text-slate-800 uppercase">{invoiceData.virtualAccountBank || "Bitnob Wema Bank"}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-white pb-2">
+                      <span className="text-xs text-slate-500 uppercase font-bold tracking-tighter">Account Number</span>
+                      <span className="text-lg font-black text-lime-700 font-mono tracking-wider">{invoiceData.virtualAccountNumber || "Generating..."}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-500 uppercase font-bold tracking-tighter">Account Name</span>
+                      <span className="text-sm font-black text-slate-800 uppercase truncate ml-4 font-mono">{invoiceData.virtualAccountName || `OS-${invoiceData.customer.toUpperCase()}`}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed font-mono">
+                    {invoiceData.virtualAccountNumber 
+                      ? "Transfer the exact NGN amount above. Your payment will be detected and converted to Bitcoin automatically."
+                      : "We are generating your unique virtual account. Please refresh in a moment."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <QRCode value={qrValue} size={220} />
+                {!paymentRequest && (
+                  <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center p-6 text-center">
+                    <p className="text-[#0F172A] text-[10px] font-black uppercase tracking-widest bg-lime-400 px-3 py-1.5 rounded-full border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                      Scan to Pay
+                    </p>
+                  </div>
+                )}
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
       {paymentError && (
-        <p className="mt-4 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3">
-          {paymentError}
-        </p>
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium text-orange-700 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3">
+            {paymentError}
+          </p>
+          {paymentError.includes("Lightning Address") && !lightningAddress.includes("@") && (
+            <p className="text-[10px] text-slate-500 px-4">
+              Tip: Standard addresses look like <span className="font-bold">user@getalby.com</span>. If you only have a username, try adding <span className="font-bold">@getalby.com</span> in your profile.
+            </p>
+          )}
+        </div>
       )}
 
       {!settled && (

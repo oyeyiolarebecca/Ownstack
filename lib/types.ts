@@ -27,6 +27,14 @@ export interface Invoice {
   owner_pubkey?: string;
   lightning_address?: string;
   profile?: BusinessProfile;
+  amount_ngn?: number;
+  virtual_account_number?: string;
+  virtual_account_bank?: string;
+  virtual_account_name?: string;
+  bitnob_reference?: string;
+  tx_type?: string;
+  nostr_event_id?: string;
+  paid_at?: string;
 }
 
 export type VaultDocumentType = "receipt" | "invoice" | "permit" | "contract" | "other";
@@ -44,6 +52,7 @@ export interface VaultDocument {
   amount?: number | string;
   currency?: LocalCurrency | string;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface NostrUser {
