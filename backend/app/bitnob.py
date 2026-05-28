@@ -185,7 +185,7 @@ def _parse_virtual_account(body: dict[str, Any], *, fallback_ref: str) -> Virtua
     )
 
 
-# Singleton --------------------------------------------------------------------
+# Singleton 
 _client: BitnobClient | None = None
 
 
