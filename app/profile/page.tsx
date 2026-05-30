@@ -27,7 +27,7 @@ export default function ProfilePage() {
           supabase.from("profiles").select("*").eq("id", user.id).single(),
           supabase.from("invoices").select("*").eq("user_id", user.id),
         ]);
-        
+
         if (profileData) setProfile(normalizeProfile(profileData));
         if (invoiceData) setInvoices(invoiceData);
         return;
@@ -36,7 +36,7 @@ export default function ProfilePage() {
       if (nostrUser) {
         const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
         setProfile(localProfile ? normalizeProfile(JSON.parse(localProfile)) : defaultNostrProfile(nostrUser));
-        
+
         const { loadLocalInvoices } = await import("@/lib/businessData");
         setInvoices(loadLocalInvoices(nostrUser.pubkey));
       }

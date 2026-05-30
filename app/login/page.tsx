@@ -57,6 +57,10 @@ export default function LoginPage() {
         e.preventDefault();
         setIsLoading(true);
 
+        // Clear any stale Nostr session so the dashboard loads the correct user
+        localStorage.removeItem("nostr_pubkey");
+        localStorage.removeItem("nostr_npub");
+
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,

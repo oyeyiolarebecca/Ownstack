@@ -53,23 +53,35 @@ export default function SignupPage() {
         e: React.FormEvent
     ) {
         e.preventDefault();
+        setIsLoading(true);
 
-        const { error } =
-            await supabase.auth.signUp({
-                email,
-                password,
-            });
+        try {
+            // Clear any stale sessions before creating a new account
+            await supabase.auth.signOut();
+            localStorage.removeItem("nostr_pubkey");
+            localStorage.removeItem("nostr_npub");
 
-        if (error) {
-            alert(error.message);
-            return;
+            const { data, error } =
+                await supabase.auth.signUp({
+                    email,
+                    password,
+                });
+
+            if (error) {
+                alert(error.message);
+                return;
+            }
+
+            // If Supabase auto-confirms (no email verification), go straight to profile
+            if (data.session) {
+                router.push("/profile");
+            } else {
+                alert("Check your email to confirm your account, then log in.");
+                router.push("/login");
+            }
+        } finally {
+            setIsLoading(false);
         }
-
-        alert(
-            "Account created successfully!"
-        );
-
-        router.push("/login");
     }
 
     return (

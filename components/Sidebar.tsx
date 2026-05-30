@@ -75,7 +75,7 @@ export default function Sidebar({ profile }: SidebarProps) {
     <>
       {/* OVERLAY for mobile */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[50] md:hidden"
           onClick={close}
         />
@@ -93,7 +93,7 @@ export default function Sidebar({ profile }: SidebarProps) {
       >
         <div className="flex flex-col h-full">
           {/* MOBILE CLOSE BUTTON */}
-          <button 
+          <button
             onClick={close}
             className="md:hidden absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400"
           >
@@ -156,7 +156,7 @@ export default function Sidebar({ profile }: SidebarProps) {
                     `}
                   >
                     {isActive && (
-                        <div className="absolute left-0 top-3 bottom-3 w-1 bg-lime-500 rounded-r-full shadow-[0_0_8px_rgba(132,204,22,0.6)]"></div>
+                      <div className="absolute left-0 top-3 bottom-3 w-1 bg-lime-500 rounded-r-full shadow-[0_0_8px_rgba(132,204,22,0.6)]"></div>
                     )}
 
                     <Icon className={`w-5 h-5 transition-colors ${isActive ? "text-lime-600" : "text-slate-400 group-hover:text-slate-700"}`} />
@@ -173,19 +173,19 @@ export default function Sidebar({ profile }: SidebarProps) {
             {(profile || getStoredNostrUser()) && (
               <div className="flex items-center gap-4 px-5 py-4 mb-4 bg-slate-50/50 rounded-3xl border border-slate-100 mt-2">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-lime-100 flex items-center justify-center font-bold text-lime-700 border-2 border-white shadow-sm">
-                    {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="profile" className="w-full h-full object-cover" />
-                    ) : (
-                        profile?.full_name?.charAt(0) || "U"
-                    )}
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    profile?.full_name?.charAt(0) || "U"
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">
-                        {profile?.full_name || (getStoredNostrUser() ? "Nostr User" : "User")}
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate font-medium uppercase tracking-wider">
-                        {profile?.category || (getStoredNostrUser()?.npub.substring(0, 10) + "...") || "Pro Account"}
-                    </p>
+                  <p className="text-sm font-bold text-slate-900 truncate">
+                    {profile?.full_name || (getStoredNostrUser() ? "Nostr User" : "User")}
+                  </p>
+                  <p className="text-[10px] text-slate-500 truncate font-medium uppercase tracking-wider">
+                    {profile?.category || (getStoredNostrUser()?.npub.substring(0, 10) + "...") || "Pro Account"}
+                  </p>
                 </div>
               </div>
             )}

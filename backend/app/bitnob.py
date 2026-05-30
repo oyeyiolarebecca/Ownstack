@@ -144,7 +144,11 @@ class BitnobClient:
                 try:
                     r = await self._request("POST", path, payload)
                     if r.is_success:
-                        return _parse_virtual_account(r.json(), fallback_ref=payload["reference"])
+                        try:
+                            return _parse_virtual_account(r.json(), fallback_ref=payload["reference"])
+                        except Exception as parse_err:
+                            log.error("bitnob json parse error on %s: %s body=%s", path, parse_err, r.text[:200])
+                            continue
                     log.warning("bitnob %s -> %s %s", path, r.status_code, r.text[:200])
                 except httpx.HTTPError as e:
                     log.warning("bitnob %s network error: %s", path, e)

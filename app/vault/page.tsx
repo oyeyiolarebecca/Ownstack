@@ -304,7 +304,7 @@ export default function VaultPage() {
                             </div>
                           </div>
                         </div>
- 
+
                         <div className="flex items-center gap-2 md:justify-end">
                           {document.file_url ? (
                             <a href={document.file_url} target="_blank" rel="noreferrer" className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-lime-300 hover:text-lime-700">

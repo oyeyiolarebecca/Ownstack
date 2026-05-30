@@ -77,24 +77,38 @@ export default function DashboardPage() {
     return () => { mounted = false; };
   }, [router]);
 
-  // Supabase Realtime for live updates
+  // Supabase Realtime for live updates (filtered to current user)
   useEffect(() => {
-    const channel = supabase
-      .channel("invoice-updates")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "invoices" },
-        (payload) => {
-          const updatedInv = payload.new as Invoice;
-          setInvoices((current) =>
-            current.map((inv) => (inv.id === updatedInv.id ? { ...inv, ...updatedInv } : inv))
-          );
-        }
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function setupRealtime() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return; // Nostr-only users don't use Realtime
+
+      channel = supabase
+        .channel("invoice-updates")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "invoices",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const updatedInv = payload.new as Invoice;
+            setInvoices((current) =>
+              current.map((inv) => (inv.id === updatedInv.id ? { ...inv, ...updatedInv } : inv))
+            );
+          }
+        )
+        .subscribe();
+    }
+
+    setupRealtime();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, []);
 

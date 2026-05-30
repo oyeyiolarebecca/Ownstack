@@ -112,24 +112,50 @@ export function publicInvoiceStorageKey(id: string | number) {
   return `public_invoice_${id}`;
 }
 
-export function loadLocalInvoices(pubkey: string): Invoice[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    return JSON.parse(localStorage.getItem(invoiceStorageKey(pubkey)) || "[]");
-  } catch {
-    return [];
-  }
+/**
+ * Strips heavy data (like profiles) from the main list to save space.
+ */
+function compactInvoices(invoices: Invoice[]): Invoice[] {
+  return invoices.map(({ profile, ...rest }) => rest);
 }
 
 export function saveLocalInvoices(pubkey: string, invoices: Invoice[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(invoiceStorageKey(pubkey), JSON.stringify(invoices));
+  const key = invoiceStorageKey(pubkey);
+  const data = JSON.stringify(compactInvoices(invoices));
+  try {
+    localStorage.setItem(key, data);
+  } catch (e) {
+    clearBusinessLog(true); // Purge public snapshots to free space
+    try {
+      localStorage.setItem(key, data);
+    } catch (retryErr) {
+      console.error("Critical storage failure:", retryErr);
+    }
+  }
 }
 
 export function savePublicInvoice(invoice: Invoice) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(publicInvoiceStorageKey(invoice.id), JSON.stringify(invoice));
+  const key = publicInvoiceStorageKey(invoice.id);
+  try {
+    localStorage.setItem(key, JSON.stringify(invoice));
+  } catch (e) {
+    console.warn("Snapshot entry skipped (storage full)");
+  }
+}
+
+/**
+ * Clears local storage. 
+ * If justSnapshots is true, only clears shareable invoice links.
+ */
+export function clearBusinessLog(justSnapshots = true) {
+  if (typeof window === "undefined") return;
+  const keys = Object.keys(localStorage);
+  keys.forEach(k => {
+    if (k.startsWith("public_invoice_")) localStorage.removeItem(k);
+    if (!justSnapshots && k.startsWith("invoices_")) localStorage.removeItem(k);
+  });
 }
 
 export function findLocalInvoiceById(id: string | number): Invoice | null {
@@ -195,3 +221,4 @@ export function updateLocalInvoiceStatus(id: string | number, status: string) {
   savePublicInvoice(updatedInvoice);
   return updatedInvoice;
 }
+

@@ -20,11 +20,11 @@ export async function loginWithNostr() {
 
   try {
     const { pubkey, npub } = await getNostrIdentity();
-    
+
     // Store in localStorage for session persistence
     localStorage.setItem("nostr_pubkey", pubkey);
     localStorage.setItem("nostr_npub", npub);
-    
+
     return { pubkey, npub };
   } catch (error) {
     console.error("Nostr login failed:", error);
@@ -57,11 +57,11 @@ export async function publishInvoiceEvent(invoice: {
   const signed = await window.nostr.signEvent(event) as any;
   const pool = new SimplePool();
   try {
-      await Promise.any(pool.publish(RELAYS, signed));
+    await Promise.any(pool.publish(RELAYS, signed));
   } catch (err) {
-      console.warn("Failed to publish to relays:", err);
+    console.warn("Failed to publish to relays:", err);
   } finally {
-      pool.close(RELAYS);
+    pool.close(RELAYS);
   }
   return signed.id;
 }
@@ -89,18 +89,18 @@ export async function restoreLedgerFromNostr(pubkey: string) {
 }
 
 export function getStoredNostrUser() {
-    if (typeof window === "undefined") return null;
-    const pubkey = localStorage.getItem("nostr_pubkey");
-    const npub = localStorage.getItem("nostr_npub");
-    if (pubkey && npub) {
-        return { pubkey, npub };
-    }
-    return null;
+  if (typeof window === "undefined") return null;
+  const pubkey = localStorage.getItem("nostr_pubkey");
+  const npub = localStorage.getItem("nostr_npub");
+  if (pubkey && npub) {
+    return { pubkey, npub };
+  }
+  return null;
 }
 
 export function logoutNostr() {
-    localStorage.removeItem("nostr_pubkey");
-    localStorage.removeItem("nostr_npub");
+  localStorage.removeItem("nostr_pubkey");
+  localStorage.removeItem("nostr_npub");
 }
 
 declare global {
