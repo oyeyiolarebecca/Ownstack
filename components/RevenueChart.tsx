@@ -1,135 +1,76 @@
 "use client";
 
-import {
-    AreaChart,
-    Area,
-    ResponsiveContainer,
-    Tooltip,
-} from "recharts";
-
 import { Invoice } from "@/lib/types";
 import { formatLocalAmount, getInvoiceLocalAmount, isPaidStatus } from "@/lib/businessData";
 
 interface RevenueChartProps {
-    invoices: Invoice[];
+  invoices: Invoice[];
 }
 
 export default function RevenueChart({ invoices }: RevenueChartProps) {
-    // Process real data for the chart
-    const monthlyData = [
-        { month: "Jan", revenue: 0 },
-        { month: "Feb", revenue: 0 },
-        { month: "Mar", revenue: 0 },
-        { month: "Apr", revenue: 0 },
-        { month: "May", revenue: 0 },
-        { month: "Jun", revenue: 0 },
-    ];
+  const monthlyData = [
+    { month: "Jan", revenue: 0 },
+    { month: "Feb", revenue: 0 },
+    { month: "Mar", revenue: 0 },
+    { month: "Apr", revenue: 0 },
+    { month: "May", revenue: 0 },
+    { month: "Jun", revenue: 0 },
+  ];
 
-    const paidInvoices = invoices.filter((inv) => isPaidStatus(inv.status));
-    
-    // Fill buckets
-    paidInvoices.forEach(inv => {
-        if (!inv.created_at) return;
-        const date = new Date(inv.created_at);
-        const monthIndex = date.getMonth();
-        if (monthIndex >= 0 && monthIndex < 6) {
-            monthlyData[monthIndex].revenue += getInvoiceLocalAmount(inv);
-        }
-    });
+  const paidInvoices = invoices.filter((invoice) => isPaidStatus(invoice.status));
 
-    const primaryCurrency = paidInvoices[0]?.currency || invoices[0]?.currency || "NGN";
-    const totalRevenue = paidInvoices
-        .filter((inv) => (inv.currency || primaryCurrency) === primaryCurrency)
-        .reduce((acc: number, inv: Invoice) => acc + getInvoiceLocalAmount(inv), 0);
+  paidInvoices.forEach((invoice) => {
+    if (!invoice.created_at) return;
+    const monthIndex = new Date(invoice.created_at).getMonth();
+    if (monthIndex >= 0 && monthIndex < monthlyData.length) {
+      monthlyData[monthIndex].revenue += getInvoiceLocalAmount(invoice);
+    }
+  });
 
-    return (
-        <section className="mt-8">
-            <div
-                className="
-                  bg-white
-                  border border-slate-100
-                  rounded-[2.5rem]
-                  p-8
-                  shadow-sm
-                "
-            >
-                {/* HEADER */}
-                <div className="flex items-center justify-between mb-10">
-                    <div>
-                        <h2 className="text-xl font-bold text-[#0F172A]">
-                            Revenue Insights
-                        </h2>
-                        <p className="text-slate-500 text-xs font-medium mt-1">
-                            Naira inflow performance
-                        </p>
-                    </div>
+  const primaryCurrency = paidInvoices[0]?.currency || invoices[0]?.currency || "NGN";
+  const totalRevenue = paidInvoices
+    .filter((invoice) => (invoice.currency || primaryCurrency) === primaryCurrency)
+    .reduce((acc, invoice) => acc + getInvoiceLocalAmount(invoice), 0);
+  const maxRevenue = Math.max(...monthlyData.map((item) => item.revenue), 1);
 
+  return (
+    <section className="mt-8">
+      <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
+        <div className="flex items-center justify-between gap-4 mb-10">
+          <div>
+            <h2 className="text-xl font-bold text-[#0F172A]">Revenue Insights</h2>
+            <p className="text-slate-500 text-xs font-medium mt-1">Naira inflow performance</p>
+          </div>
+
+          <div className="bg-slate-900 text-white px-5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-slate-200">
+            Total: {formatLocalAmount(totalRevenue, primaryCurrency)}
+          </div>
+        </div>
+
+        <div className="h-[350px] min-h-[350px] w-full rounded-[2rem] bg-gradient-to-b from-lime-50/80 to-white border border-lime-50 px-4 py-6 sm:px-8">
+          <div className="flex h-full items-end justify-between gap-3 sm:gap-5">
+            {monthlyData.map((item) => {
+              const height = Math.max(8, Math.round((item.revenue / maxRevenue) * 100));
+
+              return (
+                <div key={item.month} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-3">
+                  <div className="flex h-full w-full items-end justify-center rounded-full bg-white/70 px-1 shadow-inner shadow-lime-100/40">
                     <div
-                        className="
-                          bg-slate-900
-                          text-white
-                          px-5
-                          py-2.5
-                          rounded-2xl
-                          text-xs
-                          font-bold
-                          flex items-center gap-2
-                          shadow-lg shadow-slate-200
-                        "
-                    >
-                        Total: {formatLocalAmount(totalRevenue, primaryCurrency)}
-                    </div>
+                      className="w-full max-w-12 rounded-full bg-lime-400 shadow-lg shadow-lime-200 transition-all duration-700"
+                      style={{ height: height + "%" }}
+                      title={item.month + ": " + formatLocalAmount(item.revenue, primaryCurrency)}
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{item.month}</p>
+                    <p className="mt-1 text-[10px] font-bold text-slate-600">{formatLocalAmount(item.revenue, primaryCurrency)}</p>
+                  </div>
                 </div>
-
-                {/* CHART */}
-                <div className="h-[350px] min-h-[350px] w-full">
-                    <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                        <AreaChart data={monthlyData}>
-                            <defs>
-                                <linearGradient
-                                    id="colorRevenue"
-                                    x1="0"
-                                    y1="0"
-                                    x2="0"
-                                    y2="1"
-                                >
-                                    <stop
-                                        offset="5%"
-                                        stopColor="#a3e635"
-                                        stopOpacity={0.4}
-                                    />
-                                    <stop
-                                        offset="95%"
-                                        stopColor="#a3e635"
-                                        stopOpacity={0}
-                                    />
-                                </linearGradient>
-                            </defs>
-
-                            <Tooltip 
-                                contentStyle={{ 
-                                    borderRadius: '20px', 
-                                    border: 'none', 
-                                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
-                                    padding: '16px',
-                                    fontSize: '12px'
-                                }}
-                            />
-
-                            <Area
-                                type="monotone"
-                                dataKey="revenue"
-                                stroke="#84cc16"
-                                strokeWidth={3}
-                                fill="url(#colorRevenue)"
-                                animationDuration={1500}
-                                dot={{ r: 4, fill: '#84cc16', strokeWidth: 2, stroke: '#fff' }}
-                                activeDot={{ r: 6, strokeWidth: 0 }}
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-        </section>
-    );
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
