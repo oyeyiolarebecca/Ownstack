@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { FileCheck, FileText, LockKeyhole, ReceiptText, ShieldCheck, Upload, X } from "lucide-react";
+import { FileCheck, FileText, LockKeyhole, ReceiptText, ShieldCheck, Upload } from "lucide-react";
 
 import MobileHeader from "@/components/MobileHeader";
 import ProtectedRoute from "@/components/ProtectedRoute";

@@ -7,14 +7,11 @@ import {
     BadgeCheck,
     Radio,
 } from "lucide-react";
-import { BusinessProfile } from "@/lib/types";
+import { BusinessProfile, Invoice } from "@/lib/types";
 
 interface BusinessProfileCardProps {
     profile?: BusinessProfile | null;
-    invoices: {
-        customer: string;
-        amount: number;
-    }[];
+    invoices: Invoice[];
 }
 
 export default function BusinessProfileCard({

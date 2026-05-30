@@ -54,10 +54,10 @@ export async function publishInvoiceEvent(invoice: {
     pubkey: localStorage.getItem("nostr_pubkey") || "",
   };
 
-  const signed = await window.nostr.signEvent(event) as any;
+  const signed = (await window.nostr.signEvent(event)) as { id: string };
   const pool = new SimplePool();
   try {
-    await Promise.any(pool.publish(RELAYS, signed));
+    await Promise.any(pool.publish(RELAYS, signed as any));
   } catch (err) {
     console.warn("Failed to publish to relays:", err);
   } finally {
@@ -70,8 +70,8 @@ export async function restoreLedgerFromNostr(pubkey: string) {
   const pool = new SimplePool();
   try {
     const events = await pool.list(RELAYS, [{ kinds: [31111], authors: [pubkey] }]);
-    const invoices = events.map((e: any) => {
-      const tag = (k: string) => e.tags.find((t: any[]) => t[0] === k)?.[1];
+    const invoices = events.map((e) => {
+      const tag = (k: string) => e.tags.find((t: string[]) => t[0] === k)?.[1];
       return {
         id: Number(tag("d")?.replace("ownstack-inv-", "") || Date.now()),
         customer: tag("customer") || "Unknown",

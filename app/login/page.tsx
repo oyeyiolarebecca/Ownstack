@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { loginWithNostr, getStoredNostrUser, restoreLedgerFromNostr } from "@/lib/nostr";
+import { getNostrIdentity, getStoredNostrUser } from "@/lib/nostr";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -20,7 +20,7 @@ export default function LoginPage() {
     async function handleNostrLogin() {
         setIsLoading(true);
         try {
-            const identity = await import("@/lib/nostr").then(m => m.getNostrIdentity());
+            const identity = await getNostrIdentity();
             setPendingIdentity(identity);
         } catch (error) {
             alert(error instanceof Error ? error.message : "Connection failed");

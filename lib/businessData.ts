@@ -119,6 +119,15 @@ function compactInvoices(invoices: Invoice[]): Invoice[] {
   return invoices.map(({ profile, ...rest }) => rest);
 }
 
+export function loadLocalInvoices(pubkey: string): Invoice[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(invoiceStorageKey(pubkey)) || "[]");
+  } catch {
+    return [];
+  }
+}
+
 export function saveLocalInvoices(pubkey: string, invoices: Invoice[]) {
   if (typeof window === "undefined") return;
   const key = invoiceStorageKey(pubkey);

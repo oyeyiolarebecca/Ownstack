@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { loginWithNostr, restoreLedgerFromNostr } from "@/lib/nostr";
+import { getNostrIdentity } from "@/lib/nostr";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -17,7 +17,7 @@ export default function SignupPage() {
     async function handleNostrLogin() {
         setIsLoading(true);
         try {
-            const identity = await import("@/lib/nostr").then(m => m.getNostrIdentity());
+            const identity = await getNostrIdentity();
             setPendingIdentity(identity);
         } catch (error) {
             alert(error instanceof Error ? error.message : "Connection failed");
