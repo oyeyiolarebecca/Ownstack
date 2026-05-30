@@ -1,7 +1,7 @@
 # OwnStack
 
 **Bitcoin-Native Business Infrastructure for Entrepreneurs and Informal Businesses**
-![alt text](image.png)
+![alt text](image-2.png)
 
 ## Overview
 
@@ -28,7 +28,7 @@ These challenges are especially common among small business owners, freelancers,
 ---
 
 ## Solution
-![alt text](image-1.png)
+![alt text](image-3.png)
 
 OwnStack enables users to:
 
