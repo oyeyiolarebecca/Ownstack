@@ -78,11 +78,43 @@ export default function InvoicePage() {
     }
     // Deterministic demo fallback
     return {
-      account_number: "9" + String(Math.abs(invoice.id)).padStart(9, "0").slice(0, 9),
+      account_number: "9" + String(Math.abs(Number(invoice.id))).padStart(9, "0").slice(0, 9),
       bank_name: "Wema Bank (Demo)",
       account_name: `OwnStack/${invoice.customer}`,
       reference: `demo-${invoice.id}`,
     };
+  }
+
+  async function saveSharedInvoice(invoice: Invoice) {
+    const payload = {
+      id: Number(invoice.id),
+      customer: invoice.customer,
+      service: invoice.service,
+      amount: invoice.amount,
+      amount_ngn: invoice.local_amount,
+      local_amount: invoice.local_amount,
+      currency: invoice.currency,
+      sats_amount: invoice.sats_amount,
+      satoshis_equivalent: Number(invoice.sats_amount || invoice.amount || 0),
+      payment_method: invoice.payment_method,
+      status: invoice.status,
+      user_id: invoice.user_id || null,
+      owner_pubkey: invoice.owner_pubkey || null,
+      lightning_address: invoice.lightning_address,
+      virtual_account_number: invoice.virtual_account_number || null,
+      virtual_account_bank: invoice.virtual_account_bank || null,
+      virtual_account_name: invoice.virtual_account_name || null,
+      bitnob_reference: invoice.bitnob_reference || null,
+    };
+
+    const { data, error } = await supabase
+      .from("invoices")
+      .upsert(payload, { onConflict: "id" })
+      .select("*")
+      .single();
+
+    if (error) throw error;
+    return { ...invoice, ...data, profile: invoice.profile } as Invoice;
   }
 
   async function saveInvoice() {
@@ -141,8 +173,25 @@ export default function InvoicePage() {
           const savedInvoice = { ...newInvoice, ...data, profile: activeProfile || undefined } as Invoice;
 
           if (savedInvoice.payment_method === "bank_transfer") {
-            // Non-blocking allocation for cloud users
-            allocateNuban(savedInvoice).then(n => savePublicInvoice({ ...savedInvoice, ...n }));
+            allocateNuban(savedInvoice).then(async (n) => {
+              const updated = {
+                ...savedInvoice,
+                virtual_account_number: n.account_number,
+                virtual_account_bank: n.bank_name,
+                virtual_account_name: n.account_name,
+                bitnob_reference: n.reference,
+              };
+              savePublicInvoice(updated);
+              await supabase
+                .from("invoices")
+                .update({
+                  virtual_account_number: n.account_number,
+                  virtual_account_bank: n.bank_name,
+                  virtual_account_name: n.account_name,
+                  bitnob_reference: n.reference,
+                })
+                .eq("id", savedInvoice.id);
+            });
           }
 
           savePublicInvoice(savedInvoice);
@@ -163,13 +212,28 @@ export default function InvoicePage() {
             bitnob_reference: nuban.reference,
           };
           saveLocalInvoices(nostrUser.pubkey, [updated, ...existingInvoices]);
-          savePublicInvoice(updated);
+          try {
+            const sharedInvoice = await saveSharedInvoice(updated);
+            savePublicInvoice(sharedInvoice);
+            setSavedInvoiceId(String(sharedInvoice.id));
+          } catch (shareError) {
+            console.warn("Shared invoice save failed, keeping local copy:", shareError);
+            savePublicInvoice(updated);
+            setSavedInvoiceId(String(updated.id));
+          }
         } else {
           saveLocalInvoices(nostrUser.pubkey, [newInvoice, ...existingInvoices]);
-          savePublicInvoice(newInvoice);
+          try {
+            const sharedInvoice = await saveSharedInvoice(newInvoice);
+            savePublicInvoice(sharedInvoice);
+            setSavedInvoiceId(String(sharedInvoice.id));
+          } catch (shareError) {
+            console.warn("Shared invoice save failed, keeping local copy:", shareError);
+            savePublicInvoice(newInvoice);
+            setSavedInvoiceId(String(newInvoice.id));
+          }
         }
 
-        setSavedInvoiceId(String(newInvoice.id));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -271,6 +335,7 @@ export default function InvoicePage() {
 
               <InvoicePreview
                 invoiceData={{
+                  id: savedInvoiceId || undefined,
                   customer: invoiceData.customer,
                   service: invoiceData.service,
                   amount: String(localToSats(invoiceData.localAmount, invoiceData.currency)),

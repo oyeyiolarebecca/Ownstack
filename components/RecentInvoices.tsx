@@ -6,7 +6,7 @@ import { formatLocalAmount, getInvoiceSats, isPaidStatus, paymentMethodLabels } 
 
 interface RecentInvoicesProps {
   invoices: Invoice[];
-  onUpdateStatus?: (id: number, status: string) => void;
+  onUpdateStatus?: (id: Invoice["id"], status: string) => void;
   limit?: number;
 }
 

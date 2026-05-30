@@ -116,7 +116,11 @@ export function publicInvoiceStorageKey(id: string | number) {
  * Strips heavy data (like profiles) from the main list to save space.
  */
 function compactInvoices(invoices: Invoice[]): Invoice[] {
-  return invoices.map(({ profile, ...rest }) => rest);
+  return invoices.map((invoice) => {
+    const compact = { ...invoice };
+    delete compact.profile;
+    return compact;
+  });
 }
 
 export function loadLocalInvoices(pubkey: string): Invoice[] {
@@ -134,7 +138,7 @@ export function saveLocalInvoices(pubkey: string, invoices: Invoice[]) {
   const data = JSON.stringify(compactInvoices(invoices));
   try {
     localStorage.setItem(key, data);
-  } catch (e) {
+  } catch {
     clearBusinessLog(true); // Purge public snapshots to free space
     try {
       localStorage.setItem(key, data);
@@ -149,7 +153,7 @@ export function savePublicInvoice(invoice: Invoice) {
   const key = publicInvoiceStorageKey(invoice.id);
   try {
     localStorage.setItem(key, JSON.stringify(invoice));
-  } catch (e) {
+  } catch {
     console.warn("Snapshot entry skipped (storage full)");
   }
 }

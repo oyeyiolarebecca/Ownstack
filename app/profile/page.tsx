@@ -8,14 +8,14 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { getStoredNostrUser } from "@/lib/nostr";
 import BusinessProfileCard from "@/components/BusinessProfileCard";
 import MobileHeader from "@/components/MobileHeader";
-import { BusinessProfile } from "@/lib/types";
+import { BusinessProfile, Invoice } from "@/lib/types";
 import { defaultNostrProfile, emptyProfile, normalizeProfile } from "@/lib/businessData";
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [profile, setProfile] = useState<BusinessProfile>(emptyProfile);
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
     async function fetchProfile() {

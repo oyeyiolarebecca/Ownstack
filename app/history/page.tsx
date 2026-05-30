@@ -50,7 +50,7 @@ export default function HistoryPage() {
     };
   }, []);
 
-  async function updateInvoiceStatus(id: number, newStatus: string) {
+  async function updateInvoiceStatus(id: Invoice["id"], newStatus: string) {
     const { data: { user } } = await supabase.auth.getUser();
     const nostrUser = getStoredNostrUser();
 

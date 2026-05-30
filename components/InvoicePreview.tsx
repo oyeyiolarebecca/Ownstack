@@ -7,6 +7,8 @@ import { formatLocalAmount, isPaidStatus, paymentMethodLabels } from "@/lib/busi
 
 interface InvoicePreviewProps {
   invoiceData: {
+    id?: number | string;
+    invoice_id?: number | string;
     customer: string;
     service: string;
     amount: string;
@@ -86,7 +88,7 @@ export default function InvoicePreview({
 
   async function simulateSettlement() {
     const API = process.env.NEXT_PUBLIC_API_URL;
-    const invoiceId = (invoiceData as any).id || (invoiceData as any).invoice_id;
+    const invoiceId = invoiceData.id || invoiceData.invoice_id;
 
     if (API && invoiceId) {
       try {

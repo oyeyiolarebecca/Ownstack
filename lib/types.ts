@@ -12,7 +12,7 @@ export type LocalCurrency = "NGN" | "KES" | "GHS" | "ZAR" | "USD";
 export type PaymentMethod = "cash" | "bank_transfer" | "mobile_money" | "lightning";
 
 export interface Invoice {
-  id: number;
+  id: number | string;
   customer: string;
   service: string;
   amount: number | string;

@@ -14,13 +14,12 @@ import { Skeleton, StatsSkeleton, InvoiceSkeleton } from "@/components/Skeleton"
 import { getStoredNostrUser, publishInvoiceEvent } from "@/lib/nostr";
 import { BusinessProfile, Invoice } from "@/lib/types";
 import MobileHeader from "@/components/MobileHeader";
-import { defaultNostrProfile, loadLocalInvoices, loadLocalVaultDocuments, normalizeProfile, saveLocalInvoices } from "@/lib/businessData";
+import { defaultNostrProfile, loadLocalInvoices, normalizeProfile, saveLocalInvoices } from "@/lib/businessData";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
-  const [vaultCount, setVaultCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -44,18 +43,15 @@ export default function DashboardPage() {
           const [
             { data: profileData },
             { data: invoiceData, error: invoiceError },
-            { count: vaultDocumentCount },
           ] = await Promise.all([
             supabase.from("profiles").select("*").eq("id", user.id).single(),
             supabase.from("invoices").select("*").eq("user_id", user.id).order("id", { ascending: false }),
-            supabase.from("vault_documents").select("id", { count: "exact", head: true }).eq("user_id", user.id),
           ]);
 
           if (invoiceError) throw invoiceError;
           if (!mounted) return;
           if (profileData) setProfile(normalizeProfile(profileData));
           setInvoices(invoiceData || []);
-          setVaultCount(vaultDocumentCount || 0);
           return;
         }
 
@@ -63,7 +59,6 @@ export default function DashboardPage() {
           const localProfile = localStorage.getItem(`profile_${nostrUser.pubkey}`);
           setProfile(localProfile ? normalizeProfile(JSON.parse(localProfile)) : defaultNostrProfile(nostrUser));
           setInvoices(loadLocalInvoices(nostrUser.pubkey));
-          setVaultCount(loadLocalVaultDocuments(nostrUser.pubkey).length);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
@@ -112,7 +107,7 @@ export default function DashboardPage() {
     };
   }, []);
 
-  async function updateInvoiceStatus(id: number, newStatus: string) {
+  async function updateInvoiceStatus(id: Invoice["id"], newStatus: string) {
     const { data: { user } } = await supabase.auth.getUser();
     const nostrUser = getStoredNostrUser();
 

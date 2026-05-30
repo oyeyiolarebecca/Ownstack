@@ -156,23 +156,6 @@ export default function VaultPage() {
     }
   }
 
-  async function deleteDocument(id: number) {
-    const { data: { user } } = await supabase.auth.getUser();
-    const nostrUser = getStoredNostrUser();
-
-    if (user) {
-      await supabase.from("vault_documents").delete().eq("id", id).eq("user_id", user.id);
-      setDocuments((current) => current.filter((doc) => doc.id !== id));
-      return;
-    }
-
-    if (nostrUser) {
-      const nextDocuments = loadLocalVaultDocuments(nostrUser.pubkey).filter((doc) => doc.id !== id);
-      saveLocalVaultDocuments(nostrUser.pubkey, nextDocuments);
-      setDocuments(nextDocuments);
-    }
-  }
-
   return (
     <ProtectedRoute>
       <main className="min-h-screen bg-gradient-to-br from-[#F8FAFC] to-lime-50 flex flex-col md:flex-row">

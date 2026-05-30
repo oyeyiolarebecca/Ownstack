@@ -130,3 +130,38 @@ begin
       using (bucket_id = 'vault' and auth.uid()::text = (storage.foldername(name))[1]);
   end if;
 end $$;
+
+
+-- Nostr/public invoice sharing support.
+alter table public.invoices
+  add column if not exists owner_pubkey text,
+  add column if not exists lightning_address text,
+  add column if not exists local_amount numeric,
+  add column if not exists currency text default 'NGN',
+  add column if not exists sats_amount numeric,
+  add column if not exists payment_method text default 'bank_transfer';
+
+create index if not exists invoices_owner_pubkey_idx on public.invoices (owner_pubkey);
+
+drop policy if exists "invoices_insert_nostr_public" on public.invoices;
+create policy "invoices_insert_nostr_public"
+  on public.invoices for insert
+  to anon
+  with check (user_id is null and owner_pubkey is not null);
+
+create or replace function public.mark_invoice_paid(p_invoice_id bigint)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.invoices
+  set status = 'Paid',
+      paid_at = coalesce(paid_at, now()),
+      updated_at = now()
+  where id = p_invoice_id;
+end;
+$$;
+
+grant execute on function public.mark_invoice_paid(bigint) to anon, authenticated;

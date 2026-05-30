@@ -87,21 +87,40 @@ export default function PublicInvoicePage() {
     };
   }, [id, invoice?.virtual_account_number, invoice?.payment_method]);
 
-  function handleSettled() {
+  async function handleSettled() {
     if (!id || !invoice) return;
 
-    const localUpdate = updateLocalInvoiceStatus(id, "Paid");
-    setInvoice(localUpdate || { ...invoice, status: "Paid" });
+    const paidAt = new Date().toISOString();
+    const optimisticInvoice = { ...invoice, status: "Paid", paid_at: paidAt };
+    setInvoice(optimisticInvoice);
 
-    // Critical MVP feature: Publish proof of sale to Nostr
+    const localUpdate = updateLocalInvoiceStatus(id, "Paid");
+    if (localUpdate) setInvoice({ ...localUpdate, paid_at: paidAt });
+
+    const { error: rpcError } = await supabase.rpc("mark_invoice_paid", {
+      p_invoice_id: Number(id),
+    });
+
+    if (rpcError) {
+      const { error } = await supabase
+        .from("invoices")
+        .update({ status: "Paid", paid_at: paidAt })
+        .eq("id", id);
+
+      if (error) {
+        console.warn("Shared invoice status update failed:", error.message);
+      }
+    }
+
     const nostrUser = getStoredNostrUser();
-    if (nostrUser) {
-        publishInvoiceEvent({
-            id: invoice.id,
-            customer: invoice.customer,
-            amount_ngn: Number(invoice.local_amount || invoice.amount),
-            status: "Paid"
-        });
+    const canSignMerchantProof = !invoice.owner_pubkey || nostrUser?.pubkey === invoice.owner_pubkey;
+    if (nostrUser && canSignMerchantProof) {
+      publishInvoiceEvent({
+        id: invoice.id,
+        customer: invoice.customer,
+        amount_ngn: Number(invoice.local_amount || invoice.amount),
+        status: "Paid"
+      });
     }
   }
 
@@ -195,6 +214,7 @@ export default function PublicInvoicePage() {
           <div className="lg:col-span-2">
             <InvoicePreview
               invoiceData={{
+                id: invoice.id,
                 customer: invoice.customer,
                 service: invoice.service,
                 amount: String(getInvoiceSats(invoice)),

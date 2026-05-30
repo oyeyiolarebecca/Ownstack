@@ -1,4 +1,4 @@
-import { nip19, SimplePool } from "nostr-tools";
+import { Event, nip19, SimplePool } from "nostr-tools";
 
 const RELAYS = ["wss://relay.damus.io", "wss://nos.lol"];
 
@@ -54,10 +54,10 @@ export async function publishInvoiceEvent(invoice: {
     pubkey: localStorage.getItem("nostr_pubkey") || "",
   };
 
-  const signed = (await window.nostr.signEvent(event)) as { id: string };
+  const signed = (await window.nostr.signEvent(event)) as Event;
   const pool = new SimplePool();
   try {
-    await Promise.any(pool.publish(RELAYS, signed as any));
+    await Promise.any(pool.publish(RELAYS, signed));
   } catch (err) {
     console.warn("Failed to publish to relays:", err);
   } finally {
@@ -70,8 +70,8 @@ export async function restoreLedgerFromNostr(pubkey: string) {
   const pool = new SimplePool();
   try {
     const events = await pool.querySync(RELAYS, { kinds: [31111], authors: [pubkey] });
-    const invoices = events.map((e: any) => {
-      const tag = (k: string) => e.tags.find((t: string[]) => t[0] === k)?.[1];
+    const invoices = events.map((e) => {
+      const tag = (k: string) => e.tags.find((t) => t[0] === k)?.[1];
       return {
         id: Number(tag("d")?.replace("ownstack-inv-", "") || Date.now()),
         customer: tag("customer") || "Unknown",
