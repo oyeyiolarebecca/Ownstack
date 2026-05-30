@@ -69,8 +69,8 @@ export async function publishInvoiceEvent(invoice: {
 export async function restoreLedgerFromNostr(pubkey: string) {
   const pool = new SimplePool();
   try {
-    const events = await pool.list(RELAYS, [{ kinds: [31111], authors: [pubkey] }]);
-    const invoices = events.map((e) => {
+    const events = await pool.querySync(RELAYS, { kinds: [31111], authors: [pubkey] });
+    const invoices = events.map((e: any) => {
       const tag = (k: string) => e.tags.find((t: string[]) => t[0] === k)?.[1];
       return {
         id: Number(tag("d")?.replace("ownstack-inv-", "") || Date.now()),

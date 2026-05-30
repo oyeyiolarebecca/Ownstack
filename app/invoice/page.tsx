@@ -64,8 +64,8 @@ export default function InvoicePage() {
       const res = await fetch(`${API}/invoices/allocate-nuban`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          invoice_id: invoice.id, 
+        body: JSON.stringify({
+          invoice_id: invoice.id,
           customer_name: invoice.customer,
           amount_ngn: invoice.local_amount
         }),
@@ -139,12 +139,12 @@ export default function InvoicePage() {
         if (error) throw error;
         if (data) {
           const savedInvoice = { ...newInvoice, ...data, profile: activeProfile || undefined } as Invoice;
-          
+
           if (savedInvoice.payment_method === "bank_transfer") {
-              // Non-blocking allocation for cloud users
-              allocateNuban(savedInvoice).then(n => savePublicInvoice({ ...savedInvoice, ...n }));
+            // Non-blocking allocation for cloud users
+            allocateNuban(savedInvoice).then(n => savePublicInvoice({ ...savedInvoice, ...n }));
           }
-          
+
           savePublicInvoice(savedInvoice);
           setSavedInvoiceId(String(savedInvoice.id));
         }
@@ -156,11 +156,11 @@ export default function InvoicePage() {
         if (newInvoice.payment_method === "bank_transfer") {
           const nuban = await allocateNuban(newInvoice);
           const updated = {
-              ...newInvoice,
-              virtual_account_number: nuban.account_number,
-              virtual_account_bank: nuban.bank_name,
-              virtual_account_name: nuban.account_name,
-              bitnob_reference: nuban.reference,
+            ...newInvoice,
+            virtual_account_number: nuban.account_number,
+            virtual_account_bank: nuban.bank_name,
+            virtual_account_name: nuban.account_name,
+            bitnob_reference: nuban.reference,
           };
           saveLocalInvoices(nostrUser.pubkey, [updated, ...existingInvoices]);
           savePublicInvoice(updated);
@@ -168,7 +168,7 @@ export default function InvoicePage() {
           saveLocalInvoices(nostrUser.pubkey, [newInvoice, ...existingInvoices]);
           savePublicInvoice(newInvoice);
         }
-        
+
         setSavedInvoiceId(String(newInvoice.id));
       }
     } catch (error) {

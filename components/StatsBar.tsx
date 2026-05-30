@@ -6,22 +6,22 @@ export default function StatsBar() {
   const stats = [
     {
       label: "Active Entrepreneurs",
-      value: "12M+",
+      value: "500+",
       icon: Users,
     },
     {
       label: "Value Transacted",
-      value: "$180B+",
+      value: "₦2.5M+",
       icon: BarChart3,
     },
     {
       label: "Invoices Created",
-      value: "5M+",
+      value: "1,200+",
       icon: Zap,
     },
     {
-      label: "Countries Supported",
-      value: "50+",
+      label: "Continents",
+      value: "3+",
       icon: Globe,
     },
   ];
